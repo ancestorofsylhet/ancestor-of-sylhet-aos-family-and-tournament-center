@@ -1910,6 +1910,7 @@ async function deleteTournament(id) {
 }
 
 // Website Initialize
-init();
 window.placeBid = placeBid;
 window.buyPlayer = buyPlayer;
+
+init();
