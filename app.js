@@ -1,4 +1,4 @@
-
+﻿
 /* AOS Tournament Center — Supabase client application */
 const cfg=window.AOS_CONFIG||{};
 const ready=!!(cfg.SUPABASE_URL&&cfg.SUPABASE_ANON_KEY&&!cfg.SUPABASE_URL.includes("YOUR_")&&!cfg.SUPABASE_ANON_KEY.includes("YOUR_"));
@@ -255,12 +255,15 @@ function setupAuctionProfileSelect() {
   if (label) label.textContent = "Select Player";
 }
 
+
 async function addAuctionPlayer() {
   if (!requireAdmin()) return;
 
-  const profileId = $("auctionProfile").value;
-  const basePrice = Number($("basePrice").value);
-  const tournamentId = $("auctionTournament")?.value || auctionTournamentId;
+  const tournamentId =
+    $("auctionTournament")?.value || auctionTournamentId;
+
+  const profileId = $("auctionProfile")?.value;
+  const basePrice = Number($("basePrice")?.value);
 
   if (!tournamentId) {
     return msg("আগে Auction Tournament নির্বাচন করুন।", "error");
@@ -268,14 +271,6 @@ async function addAuctionPlayer() {
 
   if (!profileId) {
     return msg("Dropdown থেকে Player নির্বাচন করুন।", "error");
-  }
-
-  // UUID যাচাই
-  const uuidPattern =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-  if (!uuidPattern.test(profileId)) {
-    return msg("সঠিক Player UUID পাওয়া যায়নি। Player আবার নির্বাচন করুন।", "error");
   }
 
   if (!Number.isFinite(basePrice) || basePrice <= 0) {
@@ -289,75 +284,30 @@ async function addAuctionPlayer() {
     .maybeSingle();
 
   if (profileError) return msg(profileError.message, "error");
-  if (!profile) return msg("এই Player Profile পাওয়া যায়নি।", "error");
+  if (!profile) return msg("Player Profile পাওয়া যায়নি।", "error");
 
-  const { error } = await db.from("auction_players").insert({
-    tournament_id: tournamentId,
-    profile_id: profile.id,
-    base_price: basePrice,
-    status: "available"
-  });
+  const { error } = await db
+    .from("auction_players")
+    .insert({
+      tournament_id: tournamentId,
+      profile_id: profile.id,
+      base_price: basePrice,
+      status: "available"
+    });
 
-  if (error) return msg(error.message, "error");
+  if (error) {
+    console.error("Auction Player Add Error:", error);
+    return msg(error.message, "error");
+  }
 
   $("basePrice").value = "100";
   $("auctionProfile").value = "";
 
   msg("Auction Player সফলভাবে যোগ হয়েছে।", "success");
+
   await loadAll();
 }
 
-async function placeBid(playerId, teamId) {
-  if (!me) return openAuth();
-
-  if (!auctionTournamentId) {
-    return msg("আগে Auction Tournament নির্বাচন করুন।", "error");
-  }
-
-  if (!teamId || !auctionTeams.some(t => String(t.id) === String(teamId))) {
-    return msg("এই Team নির্বাচিত Auction Tournament-এ নেই।", "error");
-  }
-
-  let amount = Number(prompt("আপনার bid amount লিখুন:"));
-  if (!amount || amount <= 0) return;
-
-  let r = await db.rpc("aos_place_bid", {
-    p_auction_player_id: playerId,
-    p_team_id: teamId,
-    p_amount: amount
-  });
-
-  if (r.error) return msg(r.error.message, "error");
-
-  msg("Bid জমা হয়েছে।", "success");
-  await loadAll();
-}
-
-async function buyPlayer(playerId, teamId) {
-  if (!requireAdmin()) return;
-
-  if (!auctionTournamentId) {
-    return msg("আগে Auction Tournament নির্বাচন করুন।", "error");
-  }
-
-  if (!teamId || !auctionTeams.some(t => String(t.id) === String(teamId))) {
-    return msg("এই Team নির্বাচিত Auction Tournament-এ নেই।", "error");
-  }
-
-  let amount = Number(prompt("Final sold price লিখুন:"));
-  if (!amount || amount <= 0) return;
-
-  let r = await db.rpc("aos_buy_player", {
-    p_auction_player_id: playerId,
-    p_team_id: teamId,
-    p_price: amount
-  });
-
-  if (r.error) return msg(r.error.message, "error");
-
-  msg("Player sold এবং team budget update হয়েছে।", "success");
-  await loadAll();
-}
 
 async function generateFixtures() {
   if (!requireAdmin()) return;
@@ -1645,30 +1595,7 @@ function renderTournamentDetails(){
   const nav=tabs.map(([k,label])=>`<button class="btn ${tournamentDetailTab===k?'':'light'}" style="margin:4px" onclick="setTournamentTab('${k}')">${label}</button>`).join('');
   let content='';
   if(tournamentDetailTab==='overview') content=`<div class="card"><h3>${esc(t.name)}</h3><p>Type: ${esc(t.type||'—')} · Season: ${esc(t.season||'—')}</p><p>Status: ${esc(t.status||'—')}</p><p>Entry Fee: ${Number(t.entry_fee||0)} · Maximum Teams/Players: ${t.max_participants||'—'}</p><p>Registered Teams: ${selectedTournamentTeams.length}</p></div>`;
-  if(tournamentDetailTab==='teams') content=selectedTournamentTeams.map(x=>{
-    const squad=teamMembers.filter(m=>String(m.team_id)===String(x.id));
-    const captain=players.find(p=>String(p.id)===String(x.captain_id));
-    const membersHtml=squad.map(m=>`
-      <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
-        ${m.player?.avatar_url
-          ? `<img src="${esc(m.player.avatar_url)}" alt="" style="width:30px;height:30px;object-fit:cover;border-radius:50%">`
-          : `<span class="avatar">👤</span>`}
-        <div>
-          <b>${esc(m.player?.display_name||"Unknown Player")}</b>
-          <small style="display:block">eFootball ID: ${esc(m.player?.efootball_id||"Not Added")}</small>
-        </div>
-      </div>
-    `).join("") || '<small class="muted">এই Team-এ এখনো কোনো Player যুক্ত হয়নি।</small>';
-    return `<div class="item" style="display:block;margin-bottom:12px">
-      <div style="display:flex;align-items:center;gap:10px">
-        ${x.logo_url ? `<img src="${esc(x.logo_url)}" alt="Team Logo" style="width:48px;height:48px;object-fit:contain">` : `<div class="avatar">⚽</div>`}
-        <div><b>${esc(x.name)}</b><small style="display:block">${esc(x.description||'')}</small></div>
-      </div>
-      <small style="display:block;margin-top:8px"><b>Captain:</b> ${esc(captain?.display_name||"Not Assigned")}</small>
-      <small style="display:block;margin-top:6px"><b>Squad (${squad.length})</b></small>
-      ${membersHtml}
-    </div>`;
-  }).join('')||'<div class="empty">এই Tournament-এ এখনো Team যুক্ত হয়নি।</div>';
+  if(tournamentDetailTab==='teams') content=selectedTournamentTeams.map(x=>`<div class="item"><b>${esc(x.name)}</b><small>${esc(x.description||'')}</small></div>`).join('')||'<div class="empty">এই Tournament-এ এখনো Team যুক্ত হয়নি।</div>';
   if(tournamentDetailTab==='auction') content=ap.map(x=>`<div class="item"><b>${esc(x.profile?.display_name||'Player')}</b><small>${esc(x.status||'')} · Base Price: ${Number(x.base_price||0)}</small></div>`).join('')||'<div class="empty">এই Tournament-এর Auction Player পাওয়া যায়নি।</div>';
   if(tournamentDetailTab==='matches') content=tm.map(x=>`<div class="item"><b>${esc(x.home?.name||'TBD')} vs ${esc(x.away?.name||'TBD')}</b><small>Round ${x.round_no||'—'} · ${esc(x.status||'')}</small><b>${x.home_score??'—'} : ${x.away_score??'—'}</b></div>`).join('')||'<div class="empty">এই Tournament-এর Fixture তৈরি হয়নি।</div>';
   if(tournamentDetailTab==='table') content=st.map((x,i)=>`<div class="item"><b>${i+1}. ${esc(x.team?.name||'Team')}</b><small>P ${x.played??0} · W ${x.won??0} · D ${x.drawn??0} · L ${x.lost??0} · GD ${x.goal_difference??0} · Points ${x.points??0}</small></div>`).join('')||'<div class="empty">এই Tournament-এর Points Table পাওয়া যায়নি।</div>';
