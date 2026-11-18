@@ -260,6 +260,11 @@ async function addAuctionPlayer() {
 
   const profileId = $("auctionProfile").value;
   const basePrice = Number($("basePrice").value);
+  const tournamentId = $("auctionTournament")?.value || auctionTournamentId;
+
+  if (!tournamentId) {
+    return msg("আগে Auction Tournament নির্বাচন করুন।", "error");
+  }
 
   if (!profileId) {
     return msg("Dropdown থেকে Player নির্বাচন করুন।", "error");
@@ -287,6 +292,7 @@ async function addAuctionPlayer() {
   if (!profile) return msg("এই Player Profile পাওয়া যায়নি।", "error");
 
   const { error } = await db.from("auction_players").insert({
+    tournament_id: tournamentId,
     profile_id: profile.id,
     base_price: basePrice,
     status: "available"
@@ -1639,7 +1645,30 @@ function renderTournamentDetails(){
   const nav=tabs.map(([k,label])=>`<button class="btn ${tournamentDetailTab===k?'':'light'}" style="margin:4px" onclick="setTournamentTab('${k}')">${label}</button>`).join('');
   let content='';
   if(tournamentDetailTab==='overview') content=`<div class="card"><h3>${esc(t.name)}</h3><p>Type: ${esc(t.type||'—')} · Season: ${esc(t.season||'—')}</p><p>Status: ${esc(t.status||'—')}</p><p>Entry Fee: ${Number(t.entry_fee||0)} · Maximum Teams/Players: ${t.max_participants||'—'}</p><p>Registered Teams: ${selectedTournamentTeams.length}</p></div>`;
-  if(tournamentDetailTab==='teams') content=selectedTournamentTeams.map(x=>`<div class="item"><b>${esc(x.name)}</b><small>${esc(x.description||'')}</small></div>`).join('')||'<div class="empty">এই Tournament-এ এখনো Team যুক্ত হয়নি।</div>';
+  if(tournamentDetailTab==='teams') content=selectedTournamentTeams.map(x=>{
+    const squad=teamMembers.filter(m=>String(m.team_id)===String(x.id));
+    const captain=players.find(p=>String(p.id)===String(x.captain_id));
+    const membersHtml=squad.map(m=>`
+      <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+        ${m.player?.avatar_url
+          ? `<img src="${esc(m.player.avatar_url)}" alt="" style="width:30px;height:30px;object-fit:cover;border-radius:50%">`
+          : `<span class="avatar">👤</span>`}
+        <div>
+          <b>${esc(m.player?.display_name||"Unknown Player")}</b>
+          <small style="display:block">eFootball ID: ${esc(m.player?.efootball_id||"Not Added")}</small>
+        </div>
+      </div>
+    `).join("") || '<small class="muted">এই Team-এ এখনো কোনো Player যুক্ত হয়নি।</small>';
+    return `<div class="item" style="display:block;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:10px">
+        ${x.logo_url ? `<img src="${esc(x.logo_url)}" alt="Team Logo" style="width:48px;height:48px;object-fit:contain">` : `<div class="avatar">⚽</div>`}
+        <div><b>${esc(x.name)}</b><small style="display:block">${esc(x.description||'')}</small></div>
+      </div>
+      <small style="display:block;margin-top:8px"><b>Captain:</b> ${esc(captain?.display_name||"Not Assigned")}</small>
+      <small style="display:block;margin-top:6px"><b>Squad (${squad.length})</b></small>
+      ${membersHtml}
+    </div>`;
+  }).join('')||'<div class="empty">এই Tournament-এ এখনো Team যুক্ত হয়নি।</div>';
   if(tournamentDetailTab==='auction') content=ap.map(x=>`<div class="item"><b>${esc(x.profile?.display_name||'Player')}</b><small>${esc(x.status||'')} · Base Price: ${Number(x.base_price||0)}</small></div>`).join('')||'<div class="empty">এই Tournament-এর Auction Player পাওয়া যায়নি।</div>';
   if(tournamentDetailTab==='matches') content=tm.map(x=>`<div class="item"><b>${esc(x.home?.name||'TBD')} vs ${esc(x.away?.name||'TBD')}</b><small>Round ${x.round_no||'—'} · ${esc(x.status||'')}</small><b>${x.home_score??'—'} : ${x.away_score??'—'}</b></div>`).join('')||'<div class="empty">এই Tournament-এর Fixture তৈরি হয়নি।</div>';
   if(tournamentDetailTab==='table') content=st.map((x,i)=>`<div class="item"><b>${i+1}. ${esc(x.team?.name||'Team')}</b><small>P ${x.played??0} · W ${x.won??0} · D ${x.drawn??0} · L ${x.lost??0} · GD ${x.goal_difference??0} · Points ${x.points??0}</small></div>`).join('')||'<div class="empty">এই Tournament-এর Points Table পাওয়া যায়নি।</div>';
