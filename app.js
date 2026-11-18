@@ -1,4 +1,4 @@
-﻿
+﻿﻿
 /* AOS Tournament Center — Supabase client application */
 const cfg=window.AOS_CONFIG||{};
 const ready=!!(cfg.SUPABASE_URL&&cfg.SUPABASE_ANON_KEY&&!cfg.SUPABASE_URL.includes("YOUR_")&&!cfg.SUPABASE_ANON_KEY.includes("YOUR_"));
@@ -193,6 +193,43 @@ function setupAuctionTournamentSelect() {
     auctionTournamentId = "";
     auctionTeams = [];
   }
+}
+
+// AUCTION ARENA TOURNAMENT SELECTOR
+function setupAuctionArenaTournamentSelect() {
+  const list = $("auctionList");
+  if (!list || !list.parentElement) return;
+
+  let select = $("auctionArenaTournament");
+
+  if (!select) {
+    const wrapper = document.createElement("div");
+    wrapper.className = "card";
+    wrapper.style.marginBottom = "14px";
+    wrapper.innerHTML = `
+      <h3>Auction Arena</h3>
+      <p class="muted">প্রথমে Tournament নির্বাচন করুন।</p>
+      <select id="auctionArenaTournament">
+        <option value="">Select Tournament</option>
+      </select>
+    `;
+
+    list.parentElement.insertBefore(wrapper, list);
+    select = $("auctionArenaTournament");
+
+    select.addEventListener("change", async function () {
+      auctionTournamentId = this.value;
+      await loadAuctionTeams(this.value);
+    });
+  }
+
+  select.innerHTML =
+    '<option value="">Select Tournament</option>' +
+    tournaments.map(t =>
+      `<option value="${esc(t.id)}">${esc(t.name)}</option>`
+    ).join("");
+
+  select.value = auctionTournamentId || "";
 }
 
 async function loadAuctionTeams(tournamentId) {
@@ -1663,6 +1700,7 @@ function renderTournamentDetails(){
 // Main Render Function
 function render() {
   setupAuctionTournamentSelect();
+  setupAuctionArenaTournamentSelect();
   setupAuctionProfileSelect();
 
   populateTournamentSelects();
@@ -1686,7 +1724,15 @@ $("matchList").innerHTML=matches.map(m=>`<div class="item"><div class="grow"><b>
 $("standingList").innerHTML=`<div class="tablewrap"><table><thead><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>Pts</th></tr></thead><tbody>${standings.map((s,i)=>`<tr><td>${i+1}</td><td>${esc(s.team?.name||"")}</td><td>${s.played}</td><td>${s.won}</td><td>${s.drawn}</td><td>${s.lost}</td><td>${s.goals_for}</td><td>${s.goals_against}</td><td>${s.goal_difference}</td><td><b>${s.points}</b></td></tr>`).join("")}</tbody></table></div>`;
 
 // AUCTION ARENA
-$("auctionList").innerHTML=auctionPlayers.map(a=>{
+const arenaPlayers = auctionTournamentId
+  ? auctionPlayers.filter(a =>
+      String(a.tournament_id) === String(auctionTournamentId)
+    )
+  : [];
+
+$("auctionList").innerHTML = !auctionTournamentId
+  ? '<div class="empty">আগে Auction Tournament নির্বাচন করুন।</div>'
+  : arenaPlayers.map(a=>{
 
   const bids=auctionBids
     .filter(b=>String(b.auction_player_id)===String(a.id))
@@ -1803,7 +1849,7 @@ $("auctionList").innerHTML=auctionPlayers.map(a=>{
 
     </div>
   `;
-}).join("")||'<div class="empty">Auction pool খালি</div>';
+}).join("") || '<div class="empty">এই Tournament-এর Auction Pool খালি।</div>';
 
 
 // ADMIN AUCTION PLAYER LIST
