@@ -312,7 +312,59 @@ async function buyPlayer(auctionPlayerId, teamId) {
 
   await loadAll();
 }
+async function placeBid(auctionPlayerId, teamId) {
+  if (!session) {
+    return msg("আগে Login করুন।", "error");
+  }
 
+  if (!teamId) {
+    return msg("আগে একটি Team নির্বাচন করুন।", "error");
+  }
+
+  const player = auctionPlayers.find(
+    a => String(a.id) === String(auctionPlayerId)
+  );
+
+  if (!player || player.status !== "available") {
+    return msg("এই Player আর Available নেই।", "error");
+  }
+
+  const bids = auctionBids.filter(
+    b => String(b.auction_player_id) === String(auctionPlayerId)
+  );
+
+  const highestBid = bids.reduce(
+    (max, b) => Math.max(max, Number(b.amount)),
+    Number(player.base_price)
+  );
+
+  const amountInput = prompt(
+    `Current Highest Bid: ${highestBid}\nআপনার Bid Amount লিখুন:`,
+    String(highestBid + 100)
+  );
+
+  if (amountInput === null) return;
+
+  const amount = Number(amountInput);
+
+  if (!Number.isFinite(amount) || amount <= highestBid) {
+    return msg("Highest Bid-এর চেয়ে বেশি Bid দিতে হবে।", "error");
+  }
+
+  const { error } = await db.rpc("aos_place_bid", {
+    p_auction_player_id: auctionPlayerId,
+    p_team_id: teamId,
+    p_amount: amount
+  });
+
+  if (error) {
+    console.error("Auction Bid Error:", error);
+    return msg(error.message, "error");
+  }
+
+  msg("Bid সফলভাবে জমা হয়েছে!", "success");
+  await loadAll();
+}
 
 async function generateFixtures() {
   if (!requireAdmin()) return;
