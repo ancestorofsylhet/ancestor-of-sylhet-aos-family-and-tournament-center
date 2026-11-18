@@ -6,6 +6,9 @@ const db=ready?window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_K
 let session=null,me=null,role="player",tournaments=[],teams=[],players=[],matches=[],standings=[],auctionPlayers=[],auctionBids=[],champions=[],auctionTeams=[];
 let myParticipation=[];
 let teamMembers=[];
+let selectedTournamentId="";
+let tournamentDetailTab="overview";
+let selectedTournamentTeams=[];
 let memberTournamentId="";
 let memberTeamId="";let auctionTournamentId = "";
 const $=id=>document.getElementById(id), msg=(s,type="notice")=>{$("globalMsg").innerHTML=`<div class="notice ${type}">${esc(s)}</div>`;setTimeout(()=>{$("globalMsg").innerHTML=""},6500)};
@@ -1609,6 +1612,41 @@ const teamIds=[...new Set([
   `;
 } 
 
+// Tournament Details: public read view for players and admins
+async function openTournament(id){
+  const t=tournaments.find(x=>String(x.id)===String(id));
+  if(!t)return msg("Tournament পাওয়া যায়নি।","error");
+  selectedTournamentId=String(id); tournamentDetailTab="overview";
+  const {data,error}=await db.from("tournament_teams").select("team_id,team:teams(id,name,logo_url,description,captain_id)").eq("tournament_id",id);
+  if(error){console.error("Tournament teams:",error);selectedTournamentTeams=[];}
+  else selectedTournamentTeams=(data||[]).map(x=>x.team).filter(Boolean);
+  renderTournamentDetails();
+  document.querySelectorAll(".page").forEach(x=>x.classList.add("hidden"));
+  let panel=$("tournamentDetailPage"); if(panel)panel.classList.remove("hidden");
+  window.scrollTo(0,0);
+}
+function closeTournament(){selectedTournamentId="";let p=$("tournamentDetailPage");if(p)p.classList.add("hidden");go("tournaments")}
+function setTournamentTab(tab){tournamentDetailTab=tab;renderTournamentDetails()}
+function renderTournamentDetails(){
+  const t=tournaments.find(x=>String(x.id)===String(selectedTournamentId)); if(!t)return;
+  let panel=$("tournamentDetailPage");
+  if(!panel){panel=document.createElement("section");panel.id="tournamentDetailPage";panel.className="page hidden";panel.style.cssText="padding:18px;max-width:1100px;margin:auto";document.querySelector("main")?.appendChild(panel);if(!document.querySelector("main"))document.body.appendChild(panel);}
+  const teamIds=selectedTournamentTeams.map(x=>String(x.id));
+  const tm=matches.filter(x=>String(x.tournament_id)===String(t.id));
+  const st=standings.filter(x=>String(x.tournament_id)===String(t.id));
+  const ap=auctionPlayers.filter(x=>String(x.tournament_id)===String(t.id));
+  const tabs=[['overview','Overview'],['teams','Teams'],['auction','Auction'],['matches','Fixtures & Results'],['table','Points Table'],['knockout','Knockout']];
+  const nav=tabs.map(([k,label])=>`<button class="btn ${tournamentDetailTab===k?'':'light'}" style="margin:4px" onclick="setTournamentTab('${k}')">${label}</button>`).join('');
+  let content='';
+  if(tournamentDetailTab==='overview') content=`<div class="card"><h3>${esc(t.name)}</h3><p>Type: ${esc(t.type||'—')} · Season: ${esc(t.season||'—')}</p><p>Status: ${esc(t.status||'—')}</p><p>Entry Fee: ${Number(t.entry_fee||0)} · Maximum Teams/Players: ${t.max_participants||'—'}</p><p>Registered Teams: ${selectedTournamentTeams.length}</p></div>`;
+  if(tournamentDetailTab==='teams') content=selectedTournamentTeams.map(x=>`<div class="item"><b>${esc(x.name)}</b><small>${esc(x.description||'')}</small></div>`).join('')||'<div class="empty">এই Tournament-এ এখনো Team যুক্ত হয়নি।</div>';
+  if(tournamentDetailTab==='auction') content=ap.map(x=>`<div class="item"><b>${esc(x.profile?.display_name||'Player')}</b><small>${esc(x.status||'')} · Base Price: ${Number(x.base_price||0)}</small></div>`).join('')||'<div class="empty">এই Tournament-এর Auction Player পাওয়া যায়নি।</div>';
+  if(tournamentDetailTab==='matches') content=tm.map(x=>`<div class="item"><b>${esc(x.home?.name||'TBD')} vs ${esc(x.away?.name||'TBD')}</b><small>Round ${x.round_no||'—'} · ${esc(x.status||'')}</small><b>${x.home_score??'—'} : ${x.away_score??'—'}</b></div>`).join('')||'<div class="empty">এই Tournament-এর Fixture তৈরি হয়নি।</div>';
+  if(tournamentDetailTab==='table') content=st.map((x,i)=>`<div class="item"><b>${i+1}. ${esc(x.team?.name||'Team')}</b><small>P ${x.played??0} · W ${x.won??0} · D ${x.drawn??0} · L ${x.lost??0} · GD ${x.goal_difference??0} · Points ${x.points??0}</small></div>`).join('')||'<div class="empty">এই Tournament-এর Points Table পাওয়া যায়নি।</div>';
+  if(tournamentDetailTab==='knockout') content=tm.filter(x=>String(x.stage||'').toLowerCase().includes('knockout')||String(x.stage||'').toLowerCase().includes('final')||String(x.stage||'').toLowerCase().includes('semi')).map(x=>`<div class="item"><b>${esc(x.home?.name||'TBD')} vs ${esc(x.away?.name||'TBD')}</b><small>${esc(x.stage||'Knockout')}</small><b>${x.home_score??'—'} : ${x.away_score??'—'}</b></div>`).join('')||'<div class="empty">Knockout fixture এখনো তৈরি হয়নি।</div>';
+  panel.innerHTML=`<button class="btn light" onclick="closeTournament()">← Back to Events</button><div class="head"><h2>${esc(t.name)}</h2><span class="pill">${esc(t.status||'')}</span></div><div style="display:flex;flex-wrap:wrap;gap:4px;margin:12px 0">${nav}</div><div>${content}</div>`;
+}
+
 // Main Render Function
 function render() {
   setupAuctionTournamentSelect();
@@ -1626,7 +1664,7 @@ renderTeamMemberList(); fillSelect(
     m => `${m.home?.name || "Team"} vs ${m.away?.name || "Team"} | Round ${m.round_no} | ${m.stage || "League"}`
   );
 
-const tc=tournaments.map(t=>`<div class="card"><span class="pill">${esc(t.type)}</span><h3>${esc(t.name)}</h3><p class="muted">${esc(t.season||"")} · ${esc(t.status)}</p><p class="muted">Entry: ${Number(t.entry_fee||0)} · Max: ${t.max_participants||"—"}</p>${role==="admin"||role==="moderator"?`<button class="btn light" onclick="deleteTournament('${t.id}')">Delete</button>`:""}</div>`).join("")||'<div class="empty">এখনো Tournament নেই</div>';$("homeTours").innerHTML=tc;$("tourList").innerHTML=tc;
+const tc=tournaments.map(t=>`<div class="card"><span class="pill">${esc(t.type||"Tournament")}</span><h3>${esc(t.name)}</h3><p class="muted">${esc(t.season||"")} · ${esc(t.status||"")}</p><p class="muted">Entry: ${Number(t.entry_fee||0)} · Max: ${t.max_participants||"—"}</p><button class="btn" onclick="openTournament('${t.id}')">Open Tournament</button>${role==="admin"||role==="moderator"?` <button class="btn light" onclick="deleteTournament('${t.id}')">Delete</button>`:""}</div>`).join("")||'<div class="empty">এখনো Tournament নেই</div>';$('homeTours').innerHTML=tc;$('tourList').innerHTML=tc;
 
 $("playerList").innerHTML=players.map((p,i)=>`<div class="item"><div class="avatar">${esc((p.display_name||"?")[0])}</div><div class="grow"><b>${esc(p.display_name||"Player")}</b><small>${esc(p.club_name||"")} · ${esc(p.efootball_id||"")}</small></div><span class="pill">${esc(p.role||"player")}</span></div>`).join("")||'<div class="empty">কোনো Player নেই</div>';
 
