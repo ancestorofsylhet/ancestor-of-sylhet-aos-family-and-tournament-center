@@ -256,54 +256,59 @@ function setupAuctionProfileSelect() {
 }
 
 
-async function addAuctionPlayer() {
+
+async function buyPlayer(auctionPlayerId, teamId) {
   if (!requireAdmin()) return;
 
-  const tournamentId =
-    $("auctionTournament")?.value || auctionTournamentId;
-
-  const profileId = $("auctionProfile")?.value;
-  const basePrice = Number($("basePrice")?.value);
-
-  if (!tournamentId) {
-    return msg("আগে Auction Tournament নির্বাচন করুন।", "error");
+  if (!teamId) {
+    return msg("আগে একটি Team নির্বাচন করুন।", "error");
   }
 
-  if (!profileId) {
-    return msg("Dropdown থেকে Player নির্বাচন করুন।", "error");
+  const player = auctionPlayers.find(
+    a => String(a.id) === String(auctionPlayerId)
+  );
+
+  if (!player || player.status !== "available") {
+    return msg("এই Player আর Available নেই।", "error");
   }
 
-  if (!Number.isFinite(basePrice) || basePrice <= 0) {
-    return msg("সঠিক Base Price দিন।", "error");
+  const highestBid = auctionBids
+    .filter(b => String(b.auction_player_id) === String(auctionPlayerId))
+    .sort((a, b) => Number(b.amount) - Number(a.amount))[0];
+
+  const suggestedPrice = highestBid
+    ? Number(highestBid.amount)
+    : Number(player.base_price);
+
+  const priceInput = prompt(
+    "Sold Price লিখুন:",
+    String(suggestedPrice)
+  );
+
+  if (priceInput === null) return;
+
+  const price = Number(priceInput);
+
+  if (!Number.isFinite(price) || price <= 0) {
+    return msg("সঠিক Sold Price দিন।", "error");
   }
 
-  const { data: profile, error: profileError } = await db
-    .from("profiles")
-    .select("id")
-    .eq("id", profileId)
-    .maybeSingle();
+  if (!confirm("এই Player-কে নির্বাচিত Team-এ Sold করবেন?")) {
+    return;
+  }
 
-  if (profileError) return msg(profileError.message, "error");
-  if (!profile) return msg("Player Profile পাওয়া যায়নি।", "error");
-
-  const { error } = await db
-    .from("auction_players")
-    .insert({
-      tournament_id: tournamentId,
-      profile_id: profile.id,
-      base_price: basePrice,
-      status: "available"
-    });
+  const { error } = await db.rpc("aos_buy_player", {
+    p_auction_player_id: auctionPlayerId,
+    p_team_id: teamId,
+    p_price: price
+  });
 
   if (error) {
-    console.error("Auction Player Add Error:", error);
+    console.error("Auction Purchase Error:", error);
     return msg(error.message, "error");
   }
 
-  $("basePrice").value = "100";
-  $("auctionProfile").value = "";
-
-  msg("Auction Player সফলভাবে যোগ হয়েছে।", "success");
+  msg("Player সফলভাবে Sold হয়েছে!", "success");
 
   await loadAll();
 }
