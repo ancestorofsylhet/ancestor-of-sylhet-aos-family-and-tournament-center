@@ -757,10 +757,7 @@ function renderAuctionControlPanel() {
 async function loadAuctionPlayerFixtures(tournamentId){
   auctionPlayerFixtures=[];auctionPlayerSubmissions=[];
   if(!tournamentId)return;
-  const [f,s]=await Promise.all([
-    db.from("auction_player_fixtures").select("*").eq("tournament_id",tournamentId).order("round_no").order("created_at"),
-    db.from("auction_player_result_submissions").select("*").in("fixture_id",(auctionPlayerFixtures||[]).map(x=>x.id))
-  ]);
+  const f=await db.from("auction_player_fixtures").select("*").eq("tournament_id",tournamentId).order("round_no").order("created_at");
   if(f.error){console.warn("Auction player fixtures:",f.error.message);return;}
   auctionPlayerFixtures=f.data||[];
   if(auctionPlayerFixtures.length){
