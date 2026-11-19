@@ -29,7 +29,7 @@ async function init(){if(!ready){msg("Supabase এখনো সংযুক্�
 async function loadAll(){if(!db)return;loadSiteLogo();const {data:{user}}=await db.auth.getUser();me=user;if(user){let p=await db.from("profiles").select("*").eq("id",user.id).maybeSingle();role=p.data?.role||"player"}else role="player";$("userLabel").textContent=user?(user.email+" · "+role):"Guest";$("authBtn").textContent=user?"Logout":"Login";$("authBtn").onclick=user?logout:openAuth;
 const [t,p,tm,m,st,a,b,ch]=await Promise.all([
   db.from("tournaments").select("*").order("created_at",{ascending:false}),
-  db.from("profiles").select("id,display_name,efootball_id,device,club_name,role,avatar_url"),
+  db.from("profiles").select("id,display_name,efootball_id,device,club_name,role,avatar_url,is_active").eq("is_active",true),
   db.from("teams").select("*"),
   db.from("matches").select("*,home:teams!matches_home_team_id_fkey(name),away:teams!matches_away_team_id_fkey(name)").order("round_no"),
   db.from("standings").select("*,team:teams(name)").order("points",{ascending:false}),
@@ -133,7 +133,29 @@ async function uploadSiteLogo(){
  loadSiteLogo();
  msg("AOS Website Logo সফলভাবে Upload হয়েছে।","success");
 }
-async function registerPlayer(){if(!me)return openAuth();let payload={id:me.id,display_name:$("pName").value.trim(),efootball_id:$("pEid").value.trim(),device:$("pDevice").value.trim(),club_name:$("pClub").value.trim()||"Ancestor of Sylhet"};if(!payload.display_name||!payload.efootball_id)return msg("Player Name ও eFootball ID দিন।","error");let r=await db.from("profiles").upsert(payload);if(r.error)return msg(r.error.message,"error");msg("Player profile submit হয়েছে।","success");await loadAll()}
+async function submitProfileEditRequest(payload){
+ if(!me)throw new Error("Login প্রয়োজন।");
+ const {data:old,error:findError}=await db.from("profile_edit_requests").select("id").eq("player_id",me.id).eq("status","pending").maybeSingle();
+ if(findError)throw findError;
+ if(old){const {error}=await db.from("profile_edit_requests").update({requested_data:payload,created_at:new Date().toISOString()}).eq("id",old.id);if(error)throw error;}
+ else{const {error}=await db.from("profile_edit_requests").insert({player_id:me.id,requested_data:payload,status:"pending"});if(error)throw error;}
+}
+async function registerPlayer(){
+ if(!me)return openAuth();
+ const payload={id:me.id,display_name:$("pName").value.trim(),efootball_id:$("pEid").value.trim(),device:$("pDevice").value.trim(),club_name:$("pClub").value.trim()||"Ancestor of Sylhet"};
+ if(!payload.display_name||!payload.efootball_id||!payload.device)return msg("Player Name, eFootball ID ও Device দিতে হবে।","error");
+ const {data:old,error:findError}=await db.from("profiles").select("id,display_name,efootball_id,device,club_name").eq("id",me.id).maybeSingle();
+ if(findError)return msg(findError.message,"error");
+ if(old){
+  const changed=["display_name","efootball_id","device","club_name"].some(k=>String(payload[k]||"")!==String(old[k]||""));
+  if(!changed)return msg("তোমার Player Profile আগে থেকেই Registered আছে।","notice");
+  try{await submitProfileEditRequest(payload);msg("Profile পরিবর্তনের অনুরোধ Main Admin-এর অনুমোদনের জন্য পাঠানো হয়েছে।","success");await loadAll();}catch(e){msg("Request submit হয়নি: "+e.message,"error");}
+  return;
+ }
+ const {error}=await db.from("profiles").insert(payload);
+ if(error)return msg(error.message,"error");
+ msg("Player Registration সফল হয়েছে।","success");await loadAll();
+}
 
 function renderTournamentCardMaker(){
  const select=$("cardTournament");if(!select)return;
@@ -161,15 +183,23 @@ async function registerTournamentCard(){
   const ext=(file.name.split(".").pop()||"jpg").toLowerCase(),path=me.id+"/tournament-card-"+Date.now()+"."+ext;
   const up=await db.storage.from("avatars").upload(path,file,{upsert:false,contentType:file.type,cacheControl:"3600"});if(up.error)throw up.error;
   const photoUrl=db.storage.from("avatars").getPublicUrl(path).data?.publicUrl;if(!photoUrl)throw new Error("Player Photo URL তৈরি হয়নি।");
-  const prof=await db.from("profiles").upsert({id:me.id,display_name:name,efootball_id:eid,device:device,club_name:club,avatar_url:photoUrl});if(prof.error)throw prof.error;
+  const profileData={id:me.id,display_name:name,efootball_id:eid,device,club_name:club,avatar_url:photoUrl};
+  const {data:old,error:findError}=await db.from("profiles").select("id,display_name,efootball_id,device,club_name,avatar_url").eq("id",me.id).maybeSingle();
+  if(findError)throw findError;
+  if(!old){const ins=await db.from("profiles").insert(profileData);if(ins.error)throw ins.error;}
+  else{
+   const changed=["display_name","efootball_id","device","club_name","avatar_url"].some(k=>String(profileData[k]||"")!==String(old[k]||""));
+   if(changed){await submitProfileEditRequest(profileData);msg("তোমার দেওয়া তথ্য বর্তমান Profile থেকে আলাদা। Main Admin অনুমোদন করলে Profile Update হবে। অনুমোদনের পর আবার Tournament Registration করবে।","notice");await loadAll();return;}
+  }
   const chk=await db.from("tournament_participants").select("id").eq("tournament_id",tournamentId).eq("profile_id",me.id).maybeSingle();if(chk.error)throw chk.error;
   if(!chk.data){const ins=await db.from("tournament_participants").insert({tournament_id:tournamentId,profile_id:me.id,status:"pending"});if(ins.error)throw ins.error;}
-  currentTournamentCard={tournament:tournament,display_name:name,device:device,efootball_id:eid,club_name:club,avatar_url:photoUrl};
+  currentTournamentCard={tournament,display_name:name,device,efootball_id:eid,club_name:club,avatar_url:photoUrl};
   await loadAll();await showTournamentCard(currentTournamentCard);
-  msg(chk.data?"Player details updated. Card ready!":"Tournament Registration successful. Player Card তৈরি হয়েছে।","success");
+  msg(chk.data?"তুমি এই Tournament-এ আগে থেকেই Registered।":"Tournament Registration সফল হয়েছে। Player Card তৈরি হয়েছে।","success");
  }catch(error){console.error(error);msg("Registration হয়নি: "+(error.message||"Unknown error"),"error");}
  finally{if(button){button.disabled=false;button.textContent="Register & Create Player Card";}}
 }
+
 function loadCardPhoto(url){return new Promise(resolve=>{const img=new Image();img.crossOrigin="anonymous";img.onload=()=>resolve(img);img.onerror=()=>resolve(null);img.src=url;});}
 async function createTournamentCardCanvas(data){
  const canvas=document.createElement("canvas");canvas.width=1200;canvas.height=700;const x=canvas.getContext("2d"),bg=x.createLinearGradient(0,0,1200,700);
@@ -1500,117 +1530,27 @@ async function removeTeamMember(memberId){
 // ===============================
 
 async function saveMyProfile(){
-  if(!me) return openAuth();
-
-  const payload={
-    id:me.id,
-    display_name:$("editPlayerName").value.trim(),
-    efootball_id:$("editPlayerEid").value.trim(),
-    device:$("editPlayerDevice").value.trim(),
-    club_name:$("editPlayerClub").value.trim()||"Ancestor of Sylhet"
-  };
-
-  if(!payload.display_name || !payload.efootball_id){
-    return msg("Player Name ও eFootball ID দিতে হবে।","error");
-  }
-
-  const {data:existing}=await db.from("profiles")
-  .select("id").eq("id",me.id).maybeSingle();
-
-const {error}=existing
-  ? await db.from("profiles").update(payload).eq("id",me.id)
-  : await db.from("profiles").insert(payload);
-
-  if(error) return msg(error.message,"error");
-
-  msg("Profile Update হয়েছে।","success");
-  await loadAll();
+ if(!me)return openAuth();
+ const payload={id:me.id,display_name:$("editPlayerName").value.trim(),efootball_id:$("editPlayerEid").value.trim(),device:$("editPlayerDevice").value.trim(),club_name:$("editPlayerClub").value.trim()||"Ancestor of Sylhet"};
+ if(!payload.display_name||!payload.efootball_id||!payload.device)return msg("Player Name, eFootball ID ও Device দিতে হবে।","error");
+ try{await submitProfileEditRequest(payload);msg("Profile Edit Request Main Admin-এর অনুমোদনের জন্য পাঠানো হয়েছে।","success");await loadMyProfileRequests();}
+ catch(error){msg("Request submit হয়নি: "+error.message,"error");}
 }
-
-
 
 async function uploadProfilePhoto(){
-
-
-
-if(!me) return openAuth();
-
-  if(!db) return msg("Supabase Connected নয়।","error");
-
-  const file=$("profilePhotoFile")?.files?.[0];
-
-  if(!file) return msg("আগে Photo নির্বাচন করুন।","error");
-
-  if(!file.type.startsWith("image/"))
-    return msg("শুধু Image File Upload করা যাবে।","error");
-
-  if(file.size > 5*1024*1024)
-    return msg("Photo সর্বোচ্চ 5 MB হতে পারবে।","error");
-
-  try {
-    msg("Photo Upload হচ্ছে...","notice");
-
-    const extension=(file.name.split(".").pop()||"jpg").toLowerCase();
-    const filePath=me.id+"/"+Date.now()+"."+extension;
-
-    // Step 1: Storage-এ Photo Upload
-    const {data:uploadData,error:uploadError}=await db.storage
-      .from("avatars")
-      .upload(filePath,file,{
-        cacheControl:"3600",
-        upsert:true,
-        contentType:file.type
-      });
-
-    console.log("Upload Data:",uploadData);
-    if(uploadError) throw uploadError;
-
-    // Step 2: Public URL তৈরি
-    const {data:urlData}=db.storage
-      .from("avatars")
-      .getPublicUrl(filePath);
-
-    const avatarUrl=urlData?.publicUrl;
-
-    console.log("Generated Avatar URL:",avatarUrl);
-
-    if(!avatarUrl)
-      throw new Error("Photo URL তৈরি হয়নি।");
-
-    // Step 3: Profile Table-এ Save
-    const {data:saveData,error:saveError}=await db
-      .from("profiles")
-      .update({avatar_url:avatarUrl})
-      .eq("id",me.id)
-      .select("id,display_name,avatar_url");
-
-    console.log("Logged in User:",me.id);
-    console.log("Profile Save Result:",saveData);
-    console.log("Profile Save Error:",saveError);
-
-    if(saveError) throw saveError;
-
-    if(!saveData || saveData.length===0){
-      throw new Error(
-        "Profile Update হয়নি। Login ID: "+me.id+
-        " — Supabase RLS অথবা Profile ID পরীক্ষা করতে হবে।"
-      );
-    }
-
-    // Step 4: Profile পুনরায় Load
-    await loadAll();
-
-    // Step 5: Dashboard Refresh
-    renderPlayerDashboard();
-
-    msg("Profile Photo সফলভাবে Update হয়েছে!","success");
-
-  } catch(error) {
-    console.error("PHOTO UPLOAD ERROR:",error);
-    msg("Photo Upload Error: "+error.message,"error");
-  }
+ if(!me)return openAuth();
+ const file=$("profilePhotoFile")?.files?.[0];if(!file)return msg("আগে Photo নির্বাচন করুন।","error");
+ if(!file.type.startsWith("image/"))return msg("শুধু Image File Upload করা যাবে।","error");
+ if(file.size>5*1024*1024)return msg("Photo সর্বোচ্চ 5 MB হতে পারবে।","error");
+ try{
+  const extension=(file.name.split(".").pop()||"jpg").toLowerCase(),filePath=me.id+"/profile-request-"+Date.now()+"."+extension;
+  const {error:uploadError}=await db.storage.from("avatars").upload(filePath,file,{cacheControl:"3600",upsert:false,contentType:file.type});if(uploadError)throw uploadError;
+  const avatarUrl=db.storage.from("avatars").getPublicUrl(filePath).data?.publicUrl;if(!avatarUrl)throw new Error("Photo URL তৈরি হয়নি।");
+  const p=players.find(x=>String(x.id)===String(me.id))||{};
+  await submitProfileEditRequest({id:me.id,display_name:p.display_name||"",efootball_id:p.efootball_id||"",device:p.device||"",club_name:p.club_name||"Ancestor of Sylhet",avatar_url:avatarUrl});
+  msg("Photo Admin Approval-এর জন্য পাঠানো হয়েছে। অনুমোদনের পর Profile-এ দেখা যাবে।","success");await loadMyProfileRequests();
+ }catch(error){msg("Photo Request হয়নি: "+error.message,"error");}
 }
-
 
 function renderPlayerDashboard(){
   const box=$("myProfile");
@@ -1769,6 +1709,8 @@ const teamIds=[...new Set([
 
     <div class="card dashboard-edit">
       <h3>Edit Profile</h3>
+      <p class="muted">তোমার পরিবর্তন Main Admin অনুমোদন করার পর Profile-এ যুক্ত হবে।</p>
+      <div id="myProfileRequests" class="list" style="margin:10px 0"></div>
       <div class="field">
         <label>Profile Photo</label>
         <input id="profilePhotoFile" type="file" accept="image/*">
@@ -2030,9 +1972,53 @@ async function deleteManagementMember(id){
 }
 
 // Main Render Function
+
+async function loadMyProfileRequests(){
+ const box=$("myProfileRequests");if(!box||!me)return;
+ const {data,error}=await db.from("profile_edit_requests").select("id,status,admin_note,created_at").eq("player_id",me.id).order("created_at",{ascending:false}).limit(5);
+ if(error){box.innerHTML='<small class="muted">Request status load করা যায়নি।</small>';return;}
+ box.innerHTML=(data||[]).map(r=>'<div class="item"><div class="grow"><b>Profile Edit Request</b><small>'+esc(r.status.toUpperCase())+' · '+new Date(r.created_at).toLocaleString()+(r.admin_note?' · '+esc(r.admin_note):'')+'</small></div><span class="pill '+(r.status==="approved"?"":"gold")+'">'+esc(r.status)+'</span></div>').join("")||'<small class="muted">এখনো কোনো Edit Request নেই।</small>';
+}
+function ensurePlayerApprovalPanel(){
+ if(String(role).toLowerCase()!=="admin")return;
+ const area=$("adminArea");if(!area)return;
+ if(!$("playerApprovalPanel"))area.insertAdjacentHTML("afterbegin",'<div class="card" id="playerApprovalPanel" style="margin-bottom:15px"><div class="head"><h3>Player Registration & Profile Approval</h3><span class="pill gold">Main Admin Only</span></div><p class="muted">Player-এর Profile Edit Request অনুমোদন বা বাতিল করুন। প্রয়োজন হলে Player-কে Remove করুন।</p><div id="profileEditRequestList" class="list"></div><div class="head"><h3>Registered Players</h3></div><div id="adminRegisteredPlayers" class="list"></div></div>');
+ loadProfileApprovalPanel();
+}
+async function loadProfileApprovalPanel(){
+ if(String(role).toLowerCase()!=="admin")return;
+ const reqBox=$("profileEditRequestList"),playerBox=$("adminRegisteredPlayers");if(!reqBox||!playerBox)return;
+ const {data:requests,error}=await db.from("profile_edit_requests").select("*").eq("status","pending").order("created_at",{ascending:true});
+ if(error)reqBox.innerHTML='<div class="notice error">'+esc(error.message)+'</div>';
+ else reqBox.innerHTML=(requests||[]).map(r=>{const p=players.find(x=>String(x.id)===String(r.player_id))||{},d=r.requested_data||{};return '<div class="item"><div class="grow"><b>'+esc(p.display_name||d.display_name||"Player")+'</b><small>Name: '+esc(d.display_name||"—")+' · Device: '+esc(d.device||"—")+' · User ID: '+esc(d.efootball_id||"—")+' · Club: '+esc(d.club_name||"—")+'</small></div><button class="btn green" onclick="reviewProfileRequest(\''+r.id+'\',true)">Approve</button><button class="btn light" onclick="reviewProfileRequest(\''+r.id+'\',false)">Reject</button></div>';}).join("")||'<div class="empty">কোনো Pending Profile Request নেই।</div>';
+ playerBox.innerHTML=players.map(p=>'<div class="item">'+(p.avatar_url?'<img src="'+esc(p.avatar_url)+'" style="width:42px;height:42px;object-fit:cover;border-radius:50%">':'<div class="avatar">👤</div>')+'<div class="grow"><b>'+esc(p.display_name||"Player")+'</b><small>'+esc(p.efootball_id||"")+' · '+esc(p.club_name||"")+'</small></div><button class="btn danger" onclick="removeRegisteredPlayer(\''+p.id+'\')">Remove</button></div>').join("")||'<div class="empty">কোনো Active Player নেই।</div>';
+}
+async function reviewProfileRequest(id,approve){
+ if(!requireMainAdmin())return;
+ const {data:r,error}=await db.from("profile_edit_requests").select("*").eq("id",id).eq("status","pending").maybeSingle();
+ if(error||!r)return msg(error?.message||"Request পাওয়া যায়নি।","error");
+ if(approve){
+  const d=r.requested_data||{},allowed={display_name:d.display_name,efootball_id:d.efootball_id,device:d.device,club_name:d.club_name,avatar_url:d.avatar_url};
+  Object.keys(allowed).forEach(k=>{if(allowed[k]===undefined)delete allowed[k];});
+  const {error:updateError}=await db.from("profiles").update(allowed).eq("id",r.player_id);
+  if(updateError)return msg("Profile approve হয়নি: "+updateError.message,"error");
+ }
+ const {error:reviewError}=await db.from("profile_edit_requests").update({status:approve?"approved":"rejected",reviewed_by:me.id,reviewed_at:new Date().toISOString()}).eq("id",id);
+ if(reviewError)return msg(reviewError.message,"error");
+ msg(approve?"Profile Edit অনুমোদন হয়েছে।":"Profile Edit Request বাতিল হয়েছে।","success");await loadAll();
+}
+async function removeRegisteredPlayer(id){
+ if(!requireMainAdmin())return;
+ if(!confirm("এই Player-কে Website থেকে Remove করতে চাও?"))return;
+ const {error}=await db.from("profiles").update({is_active:false}).eq("id",id);
+ if(error)return msg("Player Remove হয়নি: "+error.message,"error");
+ msg("Player Website থেকে Remove করা হয়েছে।","success");await loadAll();
+}
+
 function render() {
   renderTournamentCardMaker();
   renderPublicPlayers();
+  ensurePlayerApprovalPanel();
   renderAwards();
   renderManagement();
   setupPlayerStatsAdminUI();
