@@ -357,14 +357,16 @@ function setupAuctionArenaTournamentSelect() {
     $("auctionArenaTournament").addEventListener("change",async function(){auctionTournamentId=this.value;auctionArenaTab="control";if(auctionVoiceJoined)await leaveAuctionVoice();await loadAuctionTeams(this.value);});
   }
   let tabs=$("auctionManagementTabs");
-  if(!tabs){tabs=document.createElement("div");tabs.id="auctionManagementTabs";tabs.className="apf-tabs";tabs.style.margin="10px 0 14px";tabs.innerHTML='<button data-tab="control" onclick="setAuctionArenaTab(this.dataset.tab)">⚙️ Auction Control Center</button><button data-tab="teams" onclick="setAuctionArenaTab(this.dataset.tab)">👥 Captain / Manager & Team Budget Setup</button><button data-tab="squads" onclick="setAuctionArenaTab(this.dataset.tab)">🏆 Teams, Budgets & Squads</button><button data-tab="ranking" onclick="setAuctionArenaTab(this.dataset.tab)">📊 Player Auction Ranking</button>';}
+  if(!tabs){tabs=document.createElement("div");tabs.id="auctionManagementTabs";tabs.className="apf-tabs";tabs.style.margin="10px 0 14px";tabs.innerHTML='<button data-tab="control" onclick="setAuctionArenaTab(this.dataset.tab)">⚙️ Auction Control Center</button><button data-tab="teams" onclick="setAuctionArenaTab(this.dataset.tab)">👥 Captain / Manager & Team Budget Setup</button><button data-tab="squads" onclick="setAuctionArenaTab(this.dataset.tab)">🏆 Teams, Budgets & Squads</button><button data-tab="ranking" onclick="setAuctionArenaTab(this.dataset.tab)">📊 Player Auction Ranking</button><button data-tab="live" onclick="setAuctionArenaTab(this.dataset.tab)">📡 Live Auction Dashboard</button>';}
   let panel=$("auctionControlPanel");if(!panel){panel=document.createElement("div");panel.id="auctionControlPanel";panel.className="card";panel.style.marginBottom="14px";}
   let setupPanel=$("auctionTeamSetupPanel");if(!setupPanel){setupPanel=document.createElement("div");setupPanel.id="auctionTeamSetupPanel";setupPanel.className="card";setupPanel.style.marginBottom="14px";}
   let publicPanel=$("auctionTeamsPublic");if(!publicPanel){publicPanel=document.createElement("div");publicPanel.id="auctionTeamsPublic";publicPanel.className="card";publicPanel.style.marginBottom="14px";}
   let rankingPanel=$("auctionRankingPanel");if(!rankingPanel){rankingPanel=document.createElement("div");rankingPanel.id="auctionRankingPanel";rankingPanel.className="card";rankingPanel.style.marginBottom="14px";}
   let matchPanel=$("auctionMatchCenter");if(!matchPanel){matchPanel=document.createElement("div");matchPanel.id="auctionMatchCenter";matchPanel.className="card";matchPanel.style.marginBottom="14px";}
   let chatPanel=$("auctionChatPanel");if(!chatPanel){chatPanel=document.createElement("div");chatPanel.id="auctionChatPanel";chatPanel.className="card";chatPanel.style.marginBottom="14px";}
-  [selectorCard,tabs,panel,setupPanel,publicPanel,rankingPanel,matchPanel,chatPanel,list].forEach(el=>parent.insertBefore(el,list));
+  let liveDashboard=$("auctionLiveDashboard");if(!liveDashboard){liveDashboard=document.createElement("div");liveDashboard.id="auctionLiveDashboard";liveDashboard.className="card";liveDashboard.style.marginBottom="14px";liveDashboard.innerHTML='<div class="head"><h2>📡 Live Auction Dashboard</h2><span class="pill gold">LIVE ARENA</span></div>';}
+  if(list.parentElement!==liveDashboard)liveDashboard.appendChild(list);
+  [selectorCard,tabs,panel,setupPanel,publicPanel,rankingPanel,matchPanel,chatPanel,liveDashboard].forEach(el=>parent.insertBefore(el,liveDashboard));
   const select=$("auctionArenaTournament"),auctionOnly=tournaments.filter(t=>String(t.type||"").toLowerCase().includes("auction"));
   select.innerHTML='<option value="">Select Auction Tournament</option>'+auctionOnly.map(t=>'<option value="'+esc(t.id)+'">'+esc(t.name)+' · '+esc(t.season||"")+'</option>').join("");
   if(auctionOnly.some(t=>String(t.id)===String(auctionTournamentId)))select.value=auctionTournamentId;
@@ -699,8 +701,8 @@ function setAuctionArenaTab(tab){
  renderAuctionControlPanel();
 }
 function renderAuctionControlPanel(){
- const nav=$("auctionManagementTabs"),panel=$("auctionControlPanel"),setupPanel=$("auctionTeamSetupPanel"),teamsPanel=$("auctionTeamsPublic"),rankingPanel=$("auctionRankingPanel");
- if(!nav||!panel||!setupPanel||!teamsPanel||!rankingPanel)return;
+ const nav=$("auctionManagementTabs"),panel=$("auctionControlPanel"),setupPanel=$("auctionTeamSetupPanel"),teamsPanel=$("auctionTeamsPublic"),rankingPanel=$("auctionRankingPanel"),liveDashboard=$("auctionLiveDashboard");
+ if(!nav||!panel||!setupPanel||!teamsPanel||!rankingPanel||!liveDashboard)return;
  nav.querySelectorAll("button").forEach(b=>b.classList.toggle("active",b.dataset.tab===auctionArenaTab));
  if(!auctionTournamentId){
   panel.innerHTML='<div class="empty">Auction Tournament নির্বাচন করলে Auction Control Center দেখা যাবে।</div>';
@@ -712,6 +714,7 @@ function renderAuctionControlPanel(){
   setupPanel.classList.toggle("hidden",auctionArenaTab!=="teams");
   teamsPanel.classList.toggle("hidden",auctionArenaTab!=="squads");
   rankingPanel.classList.toggle("hidden",auctionArenaTab!=="ranking");
+  liveDashboard.classList.toggle("hidden",auctionArenaTab!=="live");
   renderAuctionChat();return;
  }
  const isMainAdmin=String(role).toLowerCase()==="admin",staff=["admin","moderator"].includes(String(role).toLowerCase());
@@ -739,6 +742,7 @@ function renderAuctionControlPanel(){
  setupPanel.classList.toggle("hidden",auctionArenaTab!=="teams");
  teamsPanel.classList.toggle("hidden",auctionArenaTab!=="squads");
  rankingPanel.classList.toggle("hidden",auctionArenaTab!=="ranking");
+ liveDashboard.classList.toggle("hidden",auctionArenaTab!=="live");
  renderAuctionMatchCenter();renderAuctionChat();startAuctionCallTicker();
 }
 async function loadAuctionPlayerFixtures(tournamentId){
