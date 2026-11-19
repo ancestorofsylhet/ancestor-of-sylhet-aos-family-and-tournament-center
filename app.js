@@ -1859,7 +1859,7 @@ function previewManagementPhoto(input){
 function resetManagementForm(){
  editingManagementId="";
  ["managementName","managementPosition","managementDepartment","managementResponsibilities","managementOrder"].forEach(id=>{const el=$(id);if(el)el.value=id==="managementOrder"?"0":"";});
- if($("managementPhotoFile"))$("managementPhotoFile").value="";
+ if($("managementPhotoFile")){$("managementPhotoFile").value="";$("managementPhotoFile").dataset.existingUrl="";}
  const preview=$("managementPhotoPreview");if(preview){preview.src="";preview.classList.add("hidden");}
  if($("managementActive"))$("managementActive").checked=true;
  const heading=$("managementFormTitle");if(heading)heading.textContent="Add Management Member";
