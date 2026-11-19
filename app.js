@@ -24,7 +24,7 @@ function toggleAOSSidebar(force){const side=$("aosSidebar"),shade=$("sidebarShad
 function openAuth(){$("authModal").classList.remove("hidden")}
 function closeAuth(){$("authModal").classList.add("hidden")}
 async function doAuth(mode){if(!db)return msg("আগে config.js-এ Supabase URL ও anon key বসান।","error");const email=$("authEmail").value.trim(),password=$("authPass").value;if(!email||!password)return msg("Email ও Password দিন।","error");const r=mode==="login"?await db.auth.signInWithPassword({email,password}):await db.auth.signUp({email,password});if(r.error)return msg(r.error.message,"error");if(mode==="signup"&&!r.data.session){msg("Account তৈরি হয়েছে। Email verification সম্পন্ন করে Login করুন।","success");return}session=r.data.session;closeAuth();await loadAll();msg("সফলভাবে Login হয়েছে।","success")}
-async function logout(){await db.auth.signOut();session=null;me=null;role="player";await loadAll()}
+async function logout(){await leaveAuctionVoice();await db.auth.signOut();session=null;me=null;role="player";await loadAll()}
 async function init(){if(!ready){msg("Supabase এখনো সংযুক্ত নয়। ZIP-এর SETUP_GUIDE.md অনুসরণ করে config.js তৈরি করুন।");return}const {data}=await db.auth.getSession();session=data.session;db.auth.onAuthStateChange((_e,s)=>{session=s;setTimeout(loadAll,0)});await loadAll();setupAuctionRealtime()}
 async function loadAll(){if(!db)return;loadSiteLogo();const {data:{user}}=await db.auth.getUser();me=user;if(user){let p=await db.from("profiles").select("*").eq("id",user.id).maybeSingle();role=p.data?.role||"player"}else role="player";$("userLabel").textContent=user?(user.email+" · "+role):"Guest";$("authBtn").textContent=user?"Logout":"Login";$("authBtn").onclick=user?logout:openAuth;
 const [t,p,tm,m,st,a,b,ch]=await Promise.all([
@@ -323,6 +323,7 @@ function setupAuctionTournamentSelect() {
 
     select.addEventListener("change", async function () {
       auctionTournamentId = this.value;
+      if(auctionVoiceJoined)await leaveAuctionVoice();
       await loadAuctionTeams(this.value);
     });
   }
@@ -502,19 +503,19 @@ async function markAuctionUnsold(playerId) {
 }
 
 async function advanceAuctionCall() {
-  if(auctionCallAdvancing||!auctionTournamentId||!auctionRoom||auctionRoom.room_status!=="live"||!auctionRoom.call_deadline)return;
-  if(!["admin","moderator"].includes(role))return;
+  if(auctionCallAdvancing||!me||!auctionTournamentId||!auctionRoom||auctionRoom.room_status!=="live"||!auctionRoom.call_deadline)return;
   if(Date.now()<new Date(auctionRoom.call_deadline).getTime())return;
   auctionCallAdvancing=true;
-  const {error}=await db.rpc("aos_advance_auction_call",{p_tournament_id:auctionTournamentId});
-  auctionCallAdvancing=false;
-  if(error){console.warn("Auction auto call:",error.message);return;}
-  await loadAuctionArenaData(auctionTournamentId);
-  render();
+  try {
+    const {data,error}=await db.rpc("aos_advance_auction_call",{p_tournament_id:auctionTournamentId});
+    if(error)console.warn("Auction auto call:",error.message);
+    else if(Number(data)>=0){await loadAuctionArenaData(auctionTournamentId);render();}
+  } finally { auctionCallAdvancing=false; }
 }
 
 function startAuctionCallTicker() {
   if(auctionCallTimer)clearInterval(auctionCallTimer);
+  if(!me||!auctionRoom||auctionRoom.room_status!=="live"||!auctionRoom.call_deadline){auctionCallTimer=null;return;}
   auctionCallTimer=setInterval(()=>{advanceAuctionCall();},500);
 }
 
@@ -529,12 +530,172 @@ async function sendAuctionChatMessage() {
   renderAuctionChat();
 }
 
+
+/* Auction-only WebRTC voice room using private Supabase Realtime signaling. */
+let auctionVoiceChannel=null,auctionVoiceTournamentId="",auctionVoiceLocalStream=null;
+let auctionVoiceJoined=false,auctionVoiceMicMuted=true,auctionVoiceSpeakerMuted=false,auctionVoiceForcedMuted=false;
+let auctionVoicePeers={},auctionVoicePresence=[],auctionVoiceRemoteMuteState={};
+function voiceAudioRoot(){
+  let root=$("auctionVoiceAudioRoot");
+  if(!root){root=document.createElement("div");root.id="auctionVoiceAudioRoot";root.style.display="none";document.body.appendChild(root);}
+  return root;
+}
+async function sendAuctionVoiceSignal(targetId,data){
+  if(!auctionVoiceChannel||!auctionVoiceJoined)return;
+  await auctionVoiceChannel.send({type:"broadcast",event:"signal",payload:{from:me.id,to:targetId,data}});
+}
+function closeAuctionVoicePeer(peerId){
+  const entry=auctionVoicePeers[peerId];if(!entry)return;
+  try{entry.pc.ontrack=null;entry.pc.onicecandidate=null;entry.pc.close();}catch(e){}
+  const audio=$("auctionVoiceAudio-"+peerId);if(audio)audio.remove();
+  delete auctionVoicePeers[peerId];
+}
+function createAuctionVoicePeer(peerId){
+  if(auctionVoicePeers[peerId])return auctionVoicePeers[peerId];
+  const pc=new RTCPeerConnection({iceServers:[{urls:"stun:stun.l.google.com:19302"},{urls:"stun:stun1.l.google.com:19302"}]});
+  const entry={pc,queuedIce:[]};auctionVoicePeers[peerId]=entry;
+  auctionVoiceLocalStream?.getTracks().forEach(track=>pc.addTrack(track,auctionVoiceLocalStream));
+  pc.onicecandidate=e=>{if(e.candidate)sendAuctionVoiceSignal(peerId,{type:"ice",candidate:e.candidate.toJSON()});};
+  pc.ontrack=e=>{
+    let audio=$("auctionVoiceAudio-"+peerId);
+    if(!audio){audio=document.createElement("audio");audio.id="auctionVoiceAudio-"+peerId;audio.autoplay=true;audio.playsInline=true;voiceAudioRoot().appendChild(audio);}
+    audio.srcObject=e.streams[0];audio.muted=auctionVoiceSpeakerMuted;
+    audio.play().catch(()=>msg("অন্যদের Voice শুনতে browser-এর audio permission/একবার screen-এ click প্রয়োজন।","notice"));
+  };
+  pc.onconnectionstatechange=()=>{renderAuctionVoiceStatus();if(["failed","closed"].includes(pc.connectionState))closeAuctionVoicePeer(peerId);};
+  return entry;
+}
+async function flushAuctionVoiceIce(entry){
+  for(const candidate of entry.queuedIce.splice(0)){try{await entry.pc.addIceCandidate(new RTCIceCandidate(candidate));}catch(e){console.warn("Voice ICE:",e);}}
+}
+async function handleAuctionVoiceSignal(message){
+  if(!message||message.to!==me?.id||!message.from||message.from===me.id)return;
+  const peerId=message.from,data=message.data||{};
+  if(data.type==="remote-mute"||data.type==="remote-unmute"){
+    auctionVoiceForcedMuted=data.type==="remote-mute";
+    if(auctionVoiceForcedMuted){auctionVoiceMicMuted=true;auctionVoiceLocalStream?.getAudioTracks().forEach(t=>t.enabled=false);}
+    renderAuctionVoiceStatus();
+    msg(auctionVoiceForcedMuted?"Admin আপনার Mic Mute করেছেন।":"Admin Mic restriction তুলে নিয়েছেন। Mic চালু করতে Unmute চাপুন।","notice");
+    return;
+  }
+  let entry=createAuctionVoicePeer(peerId),pc=entry.pc;
+  try{
+    if(data.type==="offer"){
+      await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+      await flushAuctionVoiceIce(entry);
+      const answer=await pc.createAnswer();await pc.setLocalDescription(answer);
+      await sendAuctionVoiceSignal(peerId,{type:"answer",sdp:pc.localDescription});
+    }else if(data.type==="answer"){
+      if(!pc.currentRemoteDescription){await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));await flushAuctionVoiceIce(entry);}
+    }else if(data.type==="ice"){
+      if(pc.remoteDescription)await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+      else entry.queuedIce.push(data.candidate);
+    }
+  }catch(e){console.warn("Auction voice signal:",e);closeAuctionVoicePeer(peerId);}
+}
+async function connectAuctionVoicePeer(peerId){
+  if(!auctionVoiceJoined||!peerId||peerId===me.id||auctionVoicePeers[peerId])return;
+  const entry=createAuctionVoicePeer(peerId),pc=entry.pc;
+  try{const offer=await pc.createOffer();await pc.setLocalDescription(offer);await sendAuctionVoiceSignal(peerId,{type:"offer",sdp:pc.localDescription});}
+  catch(e){console.warn("Voice offer:",e);closeAuctionVoicePeer(peerId);}
+}
+function syncAuctionVoicePresence(){
+  if(!auctionVoiceChannel||!auctionVoiceJoined)return;
+  const state=auctionVoiceChannel.presenceState(),list=[];
+  Object.values(state).flat().forEach(meta=>{if(meta.user_id&&meta.user_id!==me.id&&!list.some(x=>x.user_id===meta.user_id))list.push(meta);});
+  auctionVoicePresence=list;
+  list.forEach(meta=>{if(String(me.id)<String(meta.user_id))connectAuctionVoicePeer(meta.user_id);});
+  Object.keys(auctionVoicePeers).forEach(id=>{if(!list.some(x=>x.user_id===id))closeAuctionVoicePeer(id);});
+  renderAuctionVoiceStatus();
+}
+async function joinAuctionVoice(){
+  if(!me)return openAuth();
+  if(!auctionTournamentId)return msg("আগে Auction Tournament নির্বাচন করুন।","error");
+  const tournament=tournaments.find(t=>String(t.id)===String(auctionTournamentId));
+  if(!tournament||!String(tournament.type||"").toLowerCase().includes("auction"))return msg("Voice Room শুধু Auction Tournament-এর জন্য।","error");
+  if(!navigator.mediaDevices?.getUserMedia||!window.RTCPeerConnection)return msg("এই Browser-এ Voice Chat support করছে না। Chrome/Edge ও HTTPS ব্যবহার করুন।","error");
+  if(auctionVoiceJoined&&auctionVoiceTournamentId===auctionTournamentId)return;
+  if(auctionVoiceJoined)await leaveAuctionVoice();
+  try{
+    auctionVoiceLocalStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
+    auctionVoiceLocalStream.getAudioTracks().forEach(t=>t.enabled=false);
+    auctionVoiceMicMuted=true;auctionVoiceForcedMuted=false;auctionVoiceSpeakerMuted=false;
+    auctionVoiceTournamentId=auctionTournamentId;
+    const channel=db.channel("auction-voice:"+auctionTournamentId,{config:{private:true,presence:{key:me.id},broadcast:{self:false}}});
+    auctionVoiceChannel=channel;
+    channel.on("broadcast",{event:"signal"},({payload})=>handleAuctionVoiceSignal(payload));
+    channel.on("presence",{event:"sync"},()=>syncAuctionVoicePresence());
+    channel.on("presence",{event:"join"},()=>syncAuctionVoicePresence());
+    channel.on("presence",{event:"leave"},()=>syncAuctionVoicePresence());
+    channel.subscribe(async status=>{
+      if(status==="SUBSCRIBED"){
+        auctionVoiceJoined=true;
+        await channel.track({user_id:me.id,display_name:me.user_metadata?.display_name||me.email?.split("@")[0]||"AOS Member",role});
+        syncAuctionVoicePresence();renderAuctionVoiceStatus();
+      }else if(status==="CHANNEL_ERROR"||status==="TIMED_OUT"){
+        msg("Voice Room সংযোগ হয়নি। Supabase Realtime permission পরীক্ষা করুন।","error");
+      }
+    });
+    renderAuctionVoiceStatus();
+  }catch(e){
+    console.error("Voice join error:",e);
+    auctionVoiceLocalStream?.getTracks().forEach(t=>t.stop());auctionVoiceLocalStream=null;auctionVoiceChannel=null;auctionVoiceJoined=false;
+    msg(e.name==="NotAllowedError"?"Microphone permission Allow করুন।":"Voice Room চালু হয়নি: "+e.message,"error");
+  }
+}
+function toggleAuctionVoiceMic(){
+  if(!auctionVoiceJoined)return;
+  if(auctionVoiceForcedMuted)return msg("Admin-এর Mute restriction এখনো চালু আছে।","error");
+  auctionVoiceMicMuted=!auctionVoiceMicMuted;
+  auctionVoiceLocalStream?.getAudioTracks().forEach(t=>t.enabled=!auctionVoiceMicMuted);
+  renderAuctionVoiceStatus();
+}
+function toggleAuctionVoiceSpeaker(){
+  auctionVoiceSpeakerMuted=!auctionVoiceSpeakerMuted;
+  document.querySelectorAll("#auctionVoiceAudioRoot audio").forEach(a=>a.muted=auctionVoiceSpeakerMuted);
+  renderAuctionVoiceStatus();
+}
+async function adminMuteAuctionVoiceUser(userId,shouldMute){
+  if(!["admin","moderator"].includes(String(role).toLowerCase()))return msg("শুধু Admin/Moderator অন্যের Mic Mute করতে পারবেন।","error");
+  if(!auctionVoicePresence.some(p=>p.user_id===userId))return;
+  auctionVoiceRemoteMuteState[userId]=shouldMute;
+  await sendAuctionVoiceSignal(userId,{type:shouldMute?"remote-mute":"remote-unmute"});
+  renderAuctionVoiceStatus();
+}
+function renderAuctionVoiceStatus(){
+  const state=$("auctionVoiceState"),controls=$("auctionVoiceControls"),list=$("auctionVoiceParticipants");
+  if(state)state.textContent=auctionVoiceJoined?"Connected":"Not Joined";
+  if(controls){
+    controls.innerHTML=auctionVoiceJoined
+      ?'<button class="btn '+(auctionVoiceMicMuted?"light":"green")+'" onclick="toggleAuctionVoiceMic()">'+(auctionVoiceMicMuted?"Mic Unmuted":"Mute Mic")+'</button><button class="btn light" onclick="toggleAuctionVoiceSpeaker()">'+(auctionVoiceSpeakerMuted?"Unmute Speaker":"Mute Speaker")+'</button><button class="btn danger" onclick="leaveAuctionVoice()">Leave Voice</button>'
+      :'<button class="btn green" onclick="joinAuctionVoice()">Join Voice Room</button>';
+    if(auctionVoiceForcedMuted&&auctionVoiceJoined)controls.insertAdjacentHTML("afterbegin",'<span class="pill gold">Admin Muted</span>');
+  }
+  if(list){
+    const people=[...(auctionVoiceJoined?[{user_id:me.id,display_name:me.user_metadata?.display_name||"You",self:true}]:[]),...auctionVoicePresence];
+    list.innerHTML=people.map(p=>{
+      const muted=p.self?auctionVoiceMicMuted:!!auctionVoiceRemoteMuteState[p.user_id];
+      const connected=p.self||!!auctionVoicePeers[p.user_id];
+      return '<div class="item" style="padding:8px 10px"><div class="grow"><b>'+esc(p.display_name||"Auction Member")+(p.self?" (You)":"")+'</b><small>'+(connected?"Voice Connected":"Connecting…")+(muted?" · Mic Muted":" · Mic On")+'</small></div>'+(!p.self&&["admin","moderator"].includes(String(role).toLowerCase())?'<button class="btn light" onclick="adminMuteAuctionVoiceUser(\''+p.user_id+'\','+(!muted)+')">'+(muted?"Unmute":"Mute")+'</button>':"")+'</div>';
+    }).join("")||'<small class="muted">কেউ Voice Room-এ নেই।</small>';
+  }
+}
+async function leaveAuctionVoice(){
+  Object.keys(auctionVoicePeers).forEach(closeAuctionVoicePeer);
+  auctionVoiceLocalStream?.getTracks().forEach(t=>t.stop());auctionVoiceLocalStream=null;
+  if(auctionVoiceChannel){try{await auctionVoiceChannel.untrack();await db.removeChannel(auctionVoiceChannel);}catch(e){}}
+  auctionVoiceChannel=null;auctionVoiceJoined=false;auctionVoiceTournamentId="";auctionVoicePresence=[];auctionVoiceRemoteMuteState={};auctionVoiceMicMuted=true;auctionVoiceForcedMuted=false;
+  renderAuctionVoiceStatus();
+}
+
 function renderAuctionChat() {
   const panel=$("auctionChatPanel");
   if(!panel)return;
   if(!auctionTournamentId){panel.innerHTML='<h3>Auction Room Chat</h3><div class="empty">Auction Tournament নির্বাচন করুন।</div>';return;}
-  panel.innerHTML='<div class="head" style="margin:0 0 10px"><h3>Live Auction Chat</h3><span class="pill">Text Chat</span><span class="pill gold">Voice Room · Setup Pending</span></div><p class="muted">লাইভ Mic/Speaker সুবিধা আলাদা Audio Service যুক্ত করার পর চালু হবে। আপাতত এই Tournament-এর Text Chat Live আছে।</p><div id="auctionChatMessages" style="max-height:230px;overflow:auto;display:grid;gap:8px;margin-bottom:12px">'+(auctionChatMessages.map(m=>'<div class="item" style="padding:9px 12px"><div class="grow"><b>'+esc(m.sender?.display_name||"Player")+'</b><small>'+esc(m.message)+'</small></div><small>'+new Date(m.created_at).toLocaleTimeString()+'</small></div>').join("")||'<div class="empty">এখনো কোনো Chat নেই।</div>')+'</div><div style="display:flex;gap:8px"><input id="auctionChatInput" maxlength="500" placeholder="Auction Room-এ message লিখুন..." style="flex:1;min-width:0"><button class="btn" onclick="sendAuctionChatMessage()">Send</button></div><p class="muted">এই Chat শুধু নির্বাচিত Auction Tournament-এর জন্য।</p>';
+  const chatRows=auctionChatMessages.map(m=>'<div class="item" style="padding:9px 12px"><div class="grow"><b>'+esc(m.sender?.display_name||"Player")+'</b><small>'+esc(m.message)+'</small></div><small>'+new Date(m.created_at).toLocaleTimeString()+'</small></div>').join("");
+  panel.innerHTML='<div class="head" style="margin:0 0 10px"><h3>Auction Room Communication</h3><span class="pill">Text + Voice</span></div><section style="padding:12px;border:1px solid var(--line);border-radius:14px;margin-bottom:14px"><div class="head"><h3>🎙️ Live Voice Room</h3><span id="auctionVoiceState" class="pill gold">Not Joined</span></div><p class="muted">শুধু এই Auction Tournament-এর লগইন করা সদস্যদের জন্য। প্রথমে Join Voice চাপুন, তারপর Mic চালু করুন। Headphone ব্যবহার করলে Echo কম হবে।</p><div id="auctionVoiceControls" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn green" onclick="joinAuctionVoice()">Join Voice Room</button></div><div id="auctionVoiceParticipants" class="list" style="margin-top:10px"><small class="muted">Voice Room-এ এখনো Join করা হয়নি।</small></div></section><div class="head"><h3>Live Text Chat</h3></div><div id="auctionChatMessages" style="max-height:230px;overflow:auto;display:grid;gap:8px;margin-bottom:12px">'+(chatRows||'<div class="empty">এখনো কোনো Chat নেই।</div>')+'</div><div style="display:flex;gap:8px"><input id="auctionChatInput" maxlength="500" placeholder="Auction Room-এ message লিখুন..." style="flex:1;min-width:0"><button class="btn" onclick="sendAuctionChatMessage()">Send</button></div><p class="muted">Voice ও Text Chat শুধু নির্বাচিত Auction Tournament-এর জন্য।</p>';
   const box=$("auctionChatMessages");if(box)box.scrollTop=box.scrollHeight;
+  renderAuctionVoiceStatus();
 }
 
 function renderAuctionControlPanel() {
@@ -2499,5 +2660,10 @@ async function deleteTournament(id) {
 // Website Initialize
 window.placeBid = placeBid;
 window.buyPlayer = buyPlayer;
+window.joinAuctionVoice=joinAuctionVoice;
+window.leaveAuctionVoice=leaveAuctionVoice;
+window.toggleAuctionVoiceMic=toggleAuctionVoiceMic;
+window.toggleAuctionVoiceSpeaker=toggleAuctionVoiceSpeaker;
+window.adminMuteAuctionVoiceUser=adminMuteAuctionVoiceUser;
 
 init();
