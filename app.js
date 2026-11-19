@@ -347,60 +347,29 @@ function setupAuctionTournamentSelect() {
 
 // AUCTION ARENA — IPL STYLE TEAM AUCTION
 function setupAuctionArenaTournamentSelect() {
-  const list = $("auctionList");
-  if (!list || !list.parentElement) return;
-  let selectorCard = $("auctionSelectorCard");
-  if (!selectorCard) {
-    selectorCard = document.createElement("div");
-    selectorCard.id = "auctionSelectorCard";
-    selectorCard.className = "card";
-    selectorCard.style.marginBottom = "14px";
-    selectorCard.innerHTML = '<div class="head" style="margin:0 0 10px"><h3>AOS Auction Arena</h3><span class="pill gold">LIVE AUCTION</span></div><p class="muted">শুধু Auction Tournament নির্বাচন করুন। Captain/Manager নির্ধারিত Team-এর হয়ে Bid করতে পারবেন।</p><select id="auctionArenaTournament"><option value="">Select Auction Tournament</option></select>';
-    list.parentElement.insertBefore(selectorCard, list);
-    $("auctionArenaTournament").addEventListener("change", async function () {
-      auctionTournamentId = this.value;
-      if(auctionVoiceJoined)await leaveAuctionVoice();
-      await loadAuctionTeams(this.value);
-    });
+  const list=$("auctionList");if(!list||!list.parentElement)return;
+  const parent=list.parentElement;
+  let selectorCard=$("auctionSelectorCard");
+  if(!selectorCard){
+    selectorCard=document.createElement("div");selectorCard.id="auctionSelectorCard";selectorCard.className="card";selectorCard.style.marginBottom="14px";
+    selectorCard.innerHTML='<div class="head" style="margin:0 0 10px"><h3>AOS Auction Arena</h3><span class="pill gold">LIVE AUCTION</span></div><p class="muted">Auction Tournament নির্বাচন করুন।</p><select id="auctionArenaTournament"><option value="">Select Auction Tournament</option></select>';
+    $("auctionList").parentElement.insertBefore(selectorCard,list);
+    $("auctionArenaTournament").addEventListener("change",async function(){auctionTournamentId=this.value;auctionArenaTab="control";if(auctionVoiceJoined)await leaveAuctionVoice();await loadAuctionTeams(this.value);});
   }
-  let panel = $("auctionControlPanel");
-  if (!panel) {
-    panel = document.createElement("div");
-    panel.id = "auctionControlPanel";
-    panel.className = "card";
-    panel.style.marginBottom = "14px";
-    selectorCard.insertAdjacentElement("afterend", panel);
-  }
-  let publicPanel = $("auctionTeamsPublic");
-  if (!publicPanel) {
-    publicPanel = document.createElement("div");
-    publicPanel.id = "auctionTeamsPublic";
-    publicPanel.className = "card";
-    publicPanel.style.marginBottom = "14px";
-    panel.insertAdjacentElement("afterend", publicPanel);
-  }
-  let matchPanel=$("auctionMatchCenter");
-  if(!matchPanel){matchPanel=document.createElement("div");matchPanel.id="auctionMatchCenter";matchPanel.className="card";matchPanel.style.marginBottom="14px";publicPanel.insertAdjacentElement("afterend",matchPanel);}
-  let chatPanel = $("auctionChatPanel");
-  if (!chatPanel) {
-    chatPanel = document.createElement("div");
-    chatPanel.id = "auctionChatPanel";
-    chatPanel.className = "card";
-    chatPanel.style.marginBottom = "14px";
-    publicPanel.insertAdjacentElement("afterend", chatPanel);
-  }
-  const listParent = list.parentElement;
-  if (panel.parentElement !== listParent) listParent.insertBefore(panel, list);
-  if (publicPanel.parentElement !== listParent) listParent.insertBefore(publicPanel, list);
-  if (chatPanel.parentElement !== listParent) listParent.insertBefore(chatPanel, list);
-
-  const select = $("auctionArenaTournament");
-  const auctionOnly = tournaments.filter(t => String(t.type || "").toLowerCase().includes("auction"));
-  select.innerHTML = '<option value="">Select Auction Tournament</option>' + auctionOnly.map(t => `<option value="${esc(t.id)}">${esc(t.name)} · ${esc(t.season || "")}</option>`).join("");
-  if (auctionOnly.some(t => String(t.id) === String(auctionTournamentId))) select.value = auctionTournamentId;
-  else { select.value = ""; if (auctionTournamentId) { auctionTournamentId = ""; auctionTeams = []; auctionTournamentSettings = null; auctionTeamSettings = []; auctionRoom = null; } }
+  let tabs=$("auctionManagementTabs");
+  if(!tabs){tabs=document.createElement("div");tabs.id="auctionManagementTabs";tabs.className="apf-tabs";tabs.style.margin="10px 0 14px";tabs.innerHTML='<button data-tab="control" onclick="setAuctionArenaTab(this.dataset.tab)">⚙️ Auction Control Center</button><button data-tab="teams" onclick="setAuctionArenaTab(this.dataset.tab)">👥 Captain / Manager & Team Budget Setup</button><button data-tab="squads" onclick="setAuctionArenaTab(this.dataset.tab)">🏆 Teams, Budgets & Squads</button><button data-tab="ranking" onclick="setAuctionArenaTab(this.dataset.tab)">📊 Player Auction Ranking</button>';}
+  let panel=$("auctionControlPanel");if(!panel){panel=document.createElement("div");panel.id="auctionControlPanel";panel.className="card";panel.style.marginBottom="14px";}
+  let publicPanel=$("auctionTeamsPublic");if(!publicPanel){publicPanel=document.createElement("div");publicPanel.id="auctionTeamsPublic";publicPanel.className="card";publicPanel.style.marginBottom="14px";}
+  let rankingPanel=$("auctionRankingPanel");if(!rankingPanel){rankingPanel=document.createElement("div");rankingPanel.id="auctionRankingPanel";rankingPanel.className="card";rankingPanel.style.marginBottom="14px";}
+  let matchPanel=$("auctionMatchCenter");if(!matchPanel){matchPanel=document.createElement("div");matchPanel.id="auctionMatchCenter";matchPanel.className="card";matchPanel.style.marginBottom="14px";}
+  let chatPanel=$("auctionChatPanel");if(!chatPanel){chatPanel=document.createElement("div");chatPanel.id="auctionChatPanel";chatPanel.className="card";chatPanel.style.marginBottom="14px";}
+  [selectorCard,tabs,panel,publicPanel,rankingPanel,matchPanel,chatPanel,list].forEach(el=>parent.insertBefore(el,list));
+  const select=$("auctionArenaTournament"),auctionOnly=tournaments.filter(t=>String(t.type||"").toLowerCase().includes("auction"));
+  select.innerHTML='<option value="">Select Auction Tournament</option>'+auctionOnly.map(t=>'<option value="'+esc(t.id)+'">'+esc(t.name)+' · '+esc(t.season||"")+'</option>').join("");
+  if(auctionOnly.some(t=>String(t.id)===String(auctionTournamentId)))select.value=auctionTournamentId;
+  else{select.value="";if(auctionTournamentId){auctionTournamentId="";auctionTeams=[];auctionTournamentSettings=null;auctionTeamSettings=[];auctionRoom=null;}}
+  tabs.querySelectorAll("button").forEach(b=>b.classList.toggle("active",b.dataset.tab===auctionArenaTab));
 }
-
 async function loadAuctionArenaData(tournamentId) {
   if (!tournamentId) return;
   const [settings,teamSettings,room,chat] = await Promise.all([
@@ -724,37 +693,47 @@ function renderAuctionChat() {
   renderAuctionVoiceStatus();
 }
 
-function renderAuctionControlPanel() {
-  const panel=$("auctionControlPanel"),publicPanel=$("auctionTeamsPublic");
-  if(!panel||!publicPanel)return;
-  if(!auctionTournamentId){$("auctionMatchCenter").innerHTML='<h3>Team Squads & Player Fixtures</h3><div class="empty">Tournament নির্বাচন করুন।</div>';panel.innerHTML='<div class="empty">Auction Tournament নির্বাচন করলে এখানে Live Auction Control ও Team Budget দেখা যাবে।</div>';publicPanel.innerHTML='<h3>Teams & Squads</h3><div class="empty">Tournament নির্বাচন করুন।</div>';renderAuctionChat();return;}
-  const isMainAdmin=String(role).toLowerCase()==="admin";
-  const staff=["admin","moderator"].includes(String(role).toLowerCase());
-  const settings=auctionTournamentSettings||{base_price:100,initial_budget:10000,min_increment:100,max_squad_size:10};
-  const playerOptions=auctionPlayers.filter(p=>String(p.tournament_id)===String(auctionTournamentId)&&p.status==="available").sort((a,b)=>(a.serial_no||0)-(b.serial_no||0)).map(p=>'<option value="'+p.id+'">'+(p.serial_no?("#"+p.serial_no+" · "):"")+esc(p.profile?.display_name||"Player")+'</option>').join("");
-  const profileOptions='<option value="">Not Assigned</option>'+players.map(p=>'<option value="'+p.id+'">'+esc(p.display_name||"Player")+'</option>').join("");
-  const teamConfig=auctionTeams.map(t=>{
-    const cfg=auctionTeamSettings.find(x=>String(x.team_id)===String(t.id))||{};
-    return '<div class="item" style="display:block"><div style="display:flex;align-items:center;gap:10px">'+(t.logo_url?'<img src="'+esc(t.logo_url)+'" style="width:42px;height:42px;object-fit:contain;border-radius:10px">':'<div class="avatar">🏆</div>')+'<div class="grow"><b>'+esc(t.name)+'</b><small>Remaining Budget: '+Number(cfg.budget_remaining??t.budget??0).toLocaleString()+' pts</small></div></div>'+(isMainAdmin?'<div class="form" style="margin-top:12px"><div class="field"><label>Team Budget (Virtual Points)</label><input id="auctionBudget-'+t.id+'" type="number" min="0" value="'+Number(cfg.budget_total??settings.initial_budget)+'"></div><div class="field"><label>Captain</label><select id="auctionCaptain-'+t.id+'">'+profileOptions+'</select></div><div class="field"><label>Manager</label><select id="auctionManager-'+t.id+'">'+profileOptions+'</select></div><div class="field"><button class="btn green" onclick="configureAuctionTeam(\''+t.id+'\')">Save Team Access</button></div></div>':'')+'</div>';
-  }).join("");
-  panel.innerHTML='<div class="head" style="margin:0 0 12px"><h3>Auction Control Center</h3><span class="pill gold">'+(auctionRoom?.room_status||"SETUP").toUpperCase()+'</span></div>'+(isMainAdmin?'<div class="card" style="background:#f8fbff;box-shadow:none;margin-bottom:12px"><h3>Tournament Auction Settings · Main Admin</h3><div class="form"><div class="field"><label>Base Price</label><input id="auctionBasePrice" type="number" min="0" value="'+Number(settings.base_price)+'"></div><div class="field"><label>Each Team Budget (Virtual Points)</label><input id="auctionInitialBudget" type="number" min="0" value="'+Number(settings.initial_budget)+'"></div><div class="field"><label>Minimum Bid Increase</label><input id="auctionMinIncrement" type="number" min="1" value="'+Number(settings.min_increment)+'"></div><div class="field"><label>Maximum Squad Size</label><input id="auctionMaxSquad" type="number" min="1" value="'+Number(settings.max_squad_size)+'"></div><div class="field full"><button class="btn green" onclick="saveAuctionTournamentSettings()">Save Auction Settings</button><button class="btn light" onclick="syncAuctionRegistration()">Sync Registered Players to Auction Pool</button></div></div></div>':'')+(isMainAdmin?'<h3>Captain / Manager & Team Budget Setup</h3><div class="list">'+(teamConfig||'<div class="empty">আগে Tournament-এ Team যুক্ত করুন।</div>')+'</div>':'')+'<div class="card" style="background:#f8fbff;box-shadow:none;margin-top:12px"><div class="head" style="margin:0 0 10px"><h3>Live Auction Lot</h3><span class="pill">'+(auctionRoom?.room_status||"Setup")+'</span></div>'+(auctionRoom?.current_player_id?'<p class="muted">Current Lot: '+esc(auctionPlayers.find(p=>String(p.id)===String(auctionRoom.current_player_id))?.profile?.display_name||"Player")+' · Call: '+(["Bidding","1","2","3","Last Call"][auctionRoom.call_stage||0])+'</p>':'<p class="muted">এখনো কোনো Player Live করা হয়নি।</p>')+(staff?'<div class="form"><div class="field"><label>Next Player</label><select id="auctionLotSelect"><option value="">Select Available Player</option>'+playerOptions+'</select></div><div class="field"><label>Room Control</label><button class="btn green" onclick="startAuctionLot()">Start Selected Player</button></div></div>'+(auctionRoom?.room_status==="live"?'<button class="btn light" onclick="setAuctionRoomStatus(\'paused\')">Pause Auction</button>':'')+(auctionRoom?.room_status==="paused"?'<button class="btn green" onclick="setAuctionRoomStatus(\'live\')">Resume Auction</button>':''):'')+'</div>';
-  // Restore Captain and Manager selections after building the control form.
-  auctionTeams.forEach(t=>{const cfg=auctionTeamSettings.find(x=>String(x.team_id)===String(t.id));const c=$("auctionCaptain-"+t.id),m=$("auctionManager-"+t.id);if(c)c.value=cfg?.captain_id||t.captain_id||"";if(m)m.value=cfg?.manager_id||"";});
-  const currentPlayer=auctionRoom?.current_player_id?auctionPlayers.find(p=>String(p.id)===String(auctionRoom.current_player_id)):null;
-  const budgetCards=auctionTeams.map(t=>{
-    const cfg=auctionTeamSettings.find(x=>String(x.team_id)===String(t.id))||{};
-    const squad=auctionPlayers.filter(p=>String(p.tournament_id)===String(auctionTournamentId)&&String(p.team_id)===String(t.id)&&p.status==="sold");
-    return '<details class="item" style="display:block"><summary style="cursor:pointer;display:flex;align-items:center;gap:10px">'+(t.logo_url?'<img src="'+esc(t.logo_url)+'" style="width:38px;height:38px;object-fit:contain;border-radius:8px">':'<div class="avatar">🏆</div>')+'<span class="grow"><b>'+esc(t.name)+'</b><small>Budget Left: '+Number(cfg.budget_remaining??t.budget??0).toLocaleString()+' · Players: '+squad.length+'</small></span></summary><div style="margin-top:12px">'+(squad.map(p=>'<div class="item" style="padding:8px;margin-top:6px">'+(p.profile?.avatar_url?'<img src="'+esc(p.profile.avatar_url)+'" style="width:40px;height:40px;object-fit:cover;border-radius:50%">':'<div class="avatar">👤</div>')+'<div class="grow"><b>'+esc(p.profile?.display_name||"Player")+'</b><small>Sold: '+Number(p.sold_price||0).toLocaleString()+'</small></div></div>').join("")||'<small class="muted">এখনো কোনো Player কেনা হয়নি।</small>')+'</div></details>';
-  }).join("");
-  const soldRanking=auctionPlayers.filter(p=>String(p.tournament_id)===String(auctionTournamentId)&&p.status==="sold").sort((a,b)=>Number(b.sold_price||0)-Number(a.sold_price||0)).map((p,i)=>{const team=auctionTeams.find(t=>String(t.id)===String(p.team_id));return '<div class="item"><b>#'+(i+1)+'</b>'+(p.profile?.avatar_url?'<img src="'+esc(p.profile.avatar_url)+'" style="width:42px;height:42px;object-fit:cover;border-radius:50%">':'<div class="avatar">👤</div>')+'<div class="grow"><b>'+esc(p.profile?.display_name||"Player")+'</b><small>'+esc(team?.name||"Team")+' · Auction Serial #'+(p.serial_no||"—")+'</small></div><b>'+Number(p.sold_price||0).toLocaleString()+' pts</b></div>';}).join("");
-  const budgetRank=[...auctionTeamSettings].sort((a,b)=>Number(b.budget_remaining||0)-Number(a.budget_remaining||0)).map((x,i)=>'<div class="item"><b>#'+(i+1)+'</b><div class="grow"><b>'+esc(x.team?.name||"Team")+'</b><small>Budget remaining</small></div><b>'+Number(x.budget_remaining||0).toLocaleString()+' pts</b></div>').join("");
-  publicPanel.innerHTML='<div class="head" style="margin:0 0 12px"><h3>Teams, Budgets & Squads</h3><span class="pill">'+auctionTeams.length+' Teams</span></div>'+(budgetCards||'<div class="empty">এই Tournament-এ Team নেই।</div>')+'<div class="head"><h3>Player Auction Ranking</h3><span class="pill gold">Highest Sold Price</span></div>'+(soldRanking||'<div class="empty">এখনো কোনো Player Sold হয়নি।</div>')+'<div class="head"><h3>Team Budget Ranking</h3></div>'+(budgetRank||'<div class="empty">Team Budget এখনো Configure করা হয়নি।</div>');
-  renderAuctionMatchCenter();
-  renderAuctionChat();
-  startAuctionCallTicker();
+function setAuctionArenaTab(tab){
+ auctionArenaTab=tab;
+ renderAuctionControlPanel();
 }
-
-
+function renderAuctionControlPanel(){
+ const nav=$("auctionManagementTabs"),panel=$("auctionControlPanel"),teamsPanel=$("auctionTeamsPublic"),rankingPanel=$("auctionRankingPanel");
+ if(!nav||!panel||!teamsPanel||!rankingPanel)return;
+ nav.querySelectorAll("button").forEach(b=>b.classList.toggle("active",b.dataset.tab===auctionArenaTab));
+ if(!auctionTournamentId){
+  panel.innerHTML='<div class="empty">Auction Tournament নির্বাচন করলে Auction Control Center দেখা যাবে।</div>';
+  teamsPanel.innerHTML='<div class="empty">Tournament নির্বাচন করুন।</div>';
+  rankingPanel.innerHTML='<div class="empty">Tournament নির্বাচন করুন।</div>';
+  $("auctionMatchCenter").innerHTML='<div class="empty">Tournament নির্বাচন করুন।</div>';renderAuctionChat();return;
+ }
+ const isMainAdmin=String(role).toLowerCase()==="admin",staff=["admin","moderator"].includes(String(role).toLowerCase());
+ const settings=auctionTournamentSettings||{base_price:100,initial_budget:10000,min_increment:100,max_squad_size:10};
+ const playerOptions=auctionPlayers.filter(p=>String(p.tournament_id)===String(auctionTournamentId)&&p.status==="available").sort((a,b)=>(a.serial_no||0)-(b.serial_no||0)).map(p=>'<option value="'+p.id+'">'+(p.serial_no?("#"+p.serial_no+" · "):"")+esc(p.profile?.display_name||"Player")+'</option>').join("");
+ const profileOptions='<option value="">Not Assigned</option>'+players.map(p=>'<option value="'+p.id+'">'+esc(p.display_name||"Player")+'</option>').join("");
+ const teamConfig=auctionTeams.map(t=>{
+  const cfg=auctionTeamSettings.find(x=>String(x.team_id)===String(t.id))||{};
+  return '<div class="item" style="display:block"><div style="display:flex;align-items:center;gap:10px">'+(t.logo_url?'<img src="'+esc(t.logo_url)+'" style="width:42px;height:42px;object-fit:contain;border-radius:10px">':'<div class="avatar">🏆</div>')+'<div class="grow"><b>'+esc(t.name)+'</b><small>Remaining Budget: '+Number(cfg.budget_remaining??t.budget??0).toLocaleString()+' pts</small></div></div>'+(isMainAdmin?'<div class="form" style="margin-top:12px"><div class="field"><label>Team Budget (Virtual Points)</label><input id="auctionBudget-'+t.id+'" type="number" min="0" value="'+Number(cfg.budget_total??settings.initial_budget)+'"></div><div class="field"><label>Captain</label><select id="auctionCaptain-'+t.id+'">'+profileOptions+'</select></div><div class="field"><label>Manager</label><select id="auctionManager-'+t.id+'">'+profileOptions+'</select></div><div class="field"><button class="btn green" onclick="configureAuctionTeam(\''+t.id+'\')">Save Team Access</button></div></div>':'')+'</div>';
+ }).join("");
+ const controlContent='<div class="head" style="margin:0 0 12px"><h3>Auction Control Center</h3><span class="pill gold">'+(auctionRoom?.room_status||"SETUP").toUpperCase()+'</span></div>'+(isMainAdmin?'<div class="card" style="background:#f8fbff;box-shadow:none;margin-bottom:12px"><h3>Tournament Auction Settings · Main Admin</h3><div class="form"><div class="field"><label>Base Price</label><input id="auctionBasePrice" type="number" min="0" value="'+Number(settings.base_price)+'"></div><div class="field"><label>Each Team Budget (Virtual Points)</label><input id="auctionInitialBudget" type="number" min="0" value="'+Number(settings.initial_budget)+'"></div><div class="field"><label>Minimum Bid Increase</label><input id="auctionMinIncrement" type="number" min="1" value="'+Number(settings.min_increment)+'"></div><div class="field"><label>Maximum Squad Size</label><input id="auctionMaxSquad" type="number" min="1" value="'+Number(settings.max_squad_size)+'"></div><div class="field full"><button class="btn green" onclick="saveAuctionTournamentSettings()">Save Auction Settings</button><button class="btn light" onclick="syncAuctionRegistration()">Sync Registered Players to Auction Pool</button></div></div></div>':'')+'<div class="card" style="background:#f8fbff;box-shadow:none;margin-top:12px"><div class="head" style="margin:0 0 10px"><h3>Live Auction Lot</h3><span class="pill">'+(auctionRoom?.room_status||"Setup")+'</span></div>'+(auctionRoom?.current_player_id?'<p class="muted">Current Lot: '+esc(auctionPlayers.find(p=>String(p.id)===String(auctionRoom.current_player_id))?.profile?.display_name||"Player")+' · Call: '+(["Bidding","1","2","3","Last Call"][auctionRoom.call_stage||0])+'</p>':'<p class="muted">এখনো কোনো Player Live করা হয়নি।</p>')+(staff?'<div class="form"><div class="field"><label>Next Player</label><select id="auctionLotSelect"><option value="">Select Available Player</option>'+playerOptions+'</select></div><div class="field"><label>Room Control</label><button class="btn green" onclick="startAuctionLot()">Start Selected Player</button></div></div>'+(auctionRoom?.room_status==="live"?'<button class="btn light" onclick="setAuctionRoomStatus(\'paused\')">Pause Auction</button>':'')+(auctionRoom?.room_status==="paused"?'<button class="btn green" onclick="setAuctionRoomStatus(\'live\')">Resume Auction</button>':''):'')+'</div>';
+ auctionTeams.forEach(t=>{const cfg=auctionTeamSettings.find(x=>String(x.team_id)===String(t.id));const c=$("auctionCaptain-"+t.id),m=$("auctionManager-"+t.id);if(c)c.value=cfg?.captain_id||t.captain_id||"";if(m)m.value=cfg?.manager_id||"";});
+ const budgetCards=auctionTeams.map(t=>{
+  const cfg=auctionTeamSettings.find(x=>String(x.team_id)===String(t.id))||{};
+  const squad=auctionPlayers.filter(p=>String(p.tournament_id)===String(auctionTournamentId)&&String(p.team_id)===String(t.id)&&p.status==="sold");
+  return '<details class="item" style="display:block"><summary style="cursor:pointer;display:flex;align-items:center;gap:10px">'+(t.logo_url?'<img src="'+esc(t.logo_url)+'" style="width:38px;height:38px;object-fit:contain;border-radius:8px">':'<div class="avatar">🏆</div>')+'<span class="grow"><b>'+esc(t.name)+'</b><small>Budget Left: '+Number(cfg.budget_remaining??t.budget??0).toLocaleString()+' · Players: '+squad.length+'</small></span></summary><div style="margin-top:12px">'+(squad.map(p=>'<div class="item" style="padding:8px;margin-top:6px">'+(p.profile?.avatar_url?'<img src="'+esc(p.profile.avatar_url)+'" style="width:40px;height:40px;object-fit:cover;border-radius:50%">':'<div class="avatar">👤</div>')+'<div class="grow"><b>'+esc(p.profile?.display_name||"Player")+'</b><small>Sold: '+Number(p.sold_price||0).toLocaleString()+'</small></div></div>').join("")||'<small class="muted">এখনো কোনো Player কেনা হয়নি।</small>')+'</div></details>';
+ }).join("");
+ const budgetRank=[...auctionTeamSettings].sort((a,b)=>Number(b.budget_remaining||0)-Number(a.budget_remaining||0)).map((x,i)=>'<div class="item"><b>#'+(i+1)+'</b><div class="grow"><b>'+esc(x.team?.name||"Team")+'</b><small>Budget remaining</small></div><b>'+Number(x.budget_remaining||0).toLocaleString()+' pts</b></div>').join("");
+ const soldRanking=auctionPlayers.filter(p=>String(p.tournament_id)===String(auctionTournamentId)&&p.status==="sold").sort((a,b)=>Number(b.sold_price||0)-Number(a.sold_price||0)).map((p,i)=>{const team=auctionTeams.find(t=>String(t.id)===String(p.team_id));return '<div class="item"><b>#'+(i+1)+'</b>'+(p.profile?.avatar_url?'<img src="'+esc(p.profile.avatar_url)+'" style="width:42px;height:42px;object-fit:cover;border-radius:50%">':'<div class="avatar">👤</div>')+'<div class="grow"><b>'+esc(p.profile?.display_name||"Player")+'</b><small>'+esc(team?.name||"Team")+' · Auction Serial #'+(p.serial_no||"—")+'</small></div><b>'+Number(p.sold_price||0).toLocaleString()+' pts</b></div>';}).join("");
+ panel.innerHTML=controlContent;
+ teamsPanel.innerHTML='<div class="head" style="margin:0 0 12px"><h3>'+(isMainAdmin?'Captain / Manager & Team Budget Setup':'Teams, Budgets & Squads')+'</h3><span class="pill">'+auctionTeams.length+' Teams</span></div>'+(isMainAdmin?'<div class="list">'+(teamConfig||'<div class="empty">আগে Tournament-এ Team যুক্ত করুন।</div>')+'</div>':'')+'<div class="head"><h3>Teams, Budgets & Squads</h3></div>'+(budgetCards||'<div class="empty">এই Tournament-এ Team নেই।</div>')+'<div class="head"><h3>Team Budget Ranking</h3></div>'+(budgetRank||'<div class="empty">Team Budget এখনো Configure করা হয়নি।</div>');
+ rankingPanel.innerHTML='<div class="head" style="margin:0 0 12px"><h3>Player Auction Ranking</h3><span class="pill gold">Highest Sold Price</span></div>'+(soldRanking||'<div class="empty">এখনো কোনো Player Sold হয়নি।</div>');
+ panel.classList.toggle("hidden",auctionArenaTab!=="control");
+ teamsPanel.classList.toggle("hidden",auctionArenaTab!=="teams"&&auctionArenaTab!=="squads");
+ rankingPanel.classList.toggle("hidden",auctionArenaTab!=="ranking");
+ if(auctionArenaTab==="squads")teamsPanel.querySelector(".head h3").textContent="Teams, Budgets & Squads";
+ if(auctionArenaTab==="teams")teamsPanel.querySelector(".head h3").textContent="Captain / Manager & Team Budget Setup";
+ renderAuctionMatchCenter();renderAuctionChat();startAuctionCallTicker();
+}
 async function loadAuctionPlayerFixtures(tournamentId){
   auctionPlayerFixtures=[];auctionPlayerSubmissions=[];
   if(!tournamentId)return;
