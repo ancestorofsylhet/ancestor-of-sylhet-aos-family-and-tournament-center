@@ -1830,7 +1830,8 @@ function renderManagement(){
  const admins=players.filter(p=>["admin","moderator"].includes(String(p.role||"").toLowerCase()));
  box.innerHTML=admins.map(p=>`<div class="card" style="text-align:center">${p.avatar_url?`<img src="${esc(p.avatar_url)}" style="width:92px;height:92px;border-radius:50%;object-fit:cover;border:3px solid var(--gold)">`:'<div class="avatar" style="width:92px;height:92px;margin:auto;font-size:30px">🛡</div>'}<h3>${esc(p.display_name||"AOS Management")}</h3><span class="pill">${String(p.role).toLowerCase()==="admin"?"Administrator":"Moderator"}</span><p class="muted">${esc(p.club_name||"Ancestor of Sylhet")}</p></div>`).join("")||'<div class="empty">এখনো কোনো Admin/Moderator Profile পাওয়া যায়নি। Admin/Moderator account-এ নাম ও Photo যুক্ত করুন।</div>';
 }
-\n// Main Render Function
+
+// Main Render Function
 function render() {
   renderPublicPlayers();
   renderAwards();
