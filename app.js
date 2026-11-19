@@ -365,8 +365,9 @@ function setupAuctionArenaTournamentSelect() {
   let matchPanel=$("auctionMatchCenter");if(!matchPanel){matchPanel=document.createElement("div");matchPanel.id="auctionMatchCenter";matchPanel.className="card";matchPanel.style.marginBottom="14px";}
   let chatPanel=$("auctionChatPanel");if(!chatPanel){chatPanel=document.createElement("div");chatPanel.id="auctionChatPanel";chatPanel.className="card";chatPanel.style.marginBottom="14px";}
   let liveDashboard=$("auctionLiveDashboard");if(!liveDashboard){liveDashboard=document.createElement("div");liveDashboard.id="auctionLiveDashboard";liveDashboard.className="card";liveDashboard.style.marginBottom="14px";liveDashboard.innerHTML='<div class="head"><h2>📡 Live Auction Dashboard</h2><span class="pill gold">LIVE ARENA</span></div>';}
+  if(liveDashboard.parentElement!==parent)parent.insertBefore(liveDashboard,list);
   if(list.parentElement!==liveDashboard)liveDashboard.appendChild(list);
-  [selectorCard,tabs,panel,setupPanel,publicPanel,rankingPanel,matchPanel,chatPanel,liveDashboard].forEach(el=>parent.insertBefore(el,liveDashboard));
+  [selectorCard,tabs,panel,setupPanel,publicPanel,rankingPanel,matchPanel,chatPanel].forEach(el=>parent.insertBefore(el,liveDashboard));
   const select=$("auctionArenaTournament"),auctionOnly=tournaments.filter(t=>String(t.type||"").toLowerCase().includes("auction"));
   select.innerHTML='<option value="">Select Auction Tournament</option>'+auctionOnly.map(t=>'<option value="'+esc(t.id)+'">'+esc(t.name)+' · '+esc(t.season||"")+'</option>').join("");
   if(auctionOnly.some(t=>String(t.id)===String(auctionTournamentId)))select.value=auctionTournamentId;
