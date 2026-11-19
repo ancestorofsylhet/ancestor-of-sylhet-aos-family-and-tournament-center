@@ -4,7 +4,7 @@ const cfg=window.AOS_CONFIG||{};
 const ready=!!(cfg.SUPABASE_URL&&cfg.SUPABASE_ANON_KEY&&!cfg.SUPABASE_URL.includes("YOUR_")&&!cfg.SUPABASE_ANON_KEY.includes("YOUR_"));
 const db=ready?window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_KEY):null;
 let session=null,me=null,role="player",tournaments=[],teams=[],players=[],matches=[],standings=[],auctionPlayers=[],auctionBids=[],champions=[],auctionTeams=[];
-let myParticipation=[];
+let myParticipation=[];\nlet playerMatchStats=[];\nlet awardTab="motm";
 let teamMembers=[];
 let selectedTournamentId="";
 let tournamentDetailTab="overview";
@@ -1749,7 +1749,83 @@ function renderTournamentDetails(){
   panel.innerHTML=`<button class="btn light" onclick="closeTournament()">← Back to Events</button><div class="head"><h2>${esc(t.name)}</h2><span class="pill">${esc(t.status||'')}</span></div><div style="display:flex;flex-wrap:wrap;gap:4px;margin:12px 0">${nav}</div><div>${content}</div>`;
 }
 
-// Main Render Function
+
+/* PUBLIC PLAYER DIRECTORY */
+function renderPublicPlayers(){
+  const box=$("publicPlayerList");if(!box)return;
+  const term=($("playerSearch")?.value||"").trim().toLowerCase();
+  const list=players.filter(p=>(p.display_name||"").toLowerCase().includes(term)||(p.efootball_id||"").toLowerCase().includes(term)||(p.club_name||"").toLowerCase().includes(term));
+  $("registeredPlayerCount").textContent=players.length+" Players";
+  box.innerHTML=list.map(p=>`<div class="card" style="cursor:pointer" onclick="openPublicPlayerProfile('${p.id}')"><div style="display:flex;align-items:center;gap:12px">${p.avatar_url?`<img src="${esc(p.avatar_url)}" style="width:62px;height:62px;object-fit:cover;border-radius:50%">`:'<div class="avatar" style="width:62px;height:62px">👤</div>'}<div class="grow"><h3>${esc(p.display_name||"Player")}</h3><small class="muted">${esc(p.club_name||"AOS Player")}</small></div><span class="pill">View</span></div><p class="muted">eFootball ID: ${esc(p.efootball_id||"Not Added")}</p></div>`).join("")||'<div class="empty">কোনো Player পাওয়া যায়নি।</div>';
+}
+function openPublicPlayerProfile(id){
+  const p=players.find(x=>String(x.id)===String(id));if(!p)return;
+  let page=$("publicPlayerDetail");if(!page){page=document.createElement("section");page.id="publicPlayerDetail";page.className="page hidden";document.querySelector("main").appendChild(page);}
+  const stats=playerMatchStats.filter(s=>String(s.player_id)===String(id));
+  const goals=stats.reduce((n,s)=>n+Number(s.goals||0),0),assists=stats.reduce((n,s)=>n+Number(s.assists||0),0),motm=stats.filter(s=>s.is_motm).length;
+  page.innerHTML=`<button class="btn light" onclick="go('playersDirectory')">← Back to Players</button><div class="card" style="margin-top:14px;text-align:center">${p.avatar_url?`<img src="${esc(p.avatar_url)}" style="width:110px;height:110px;object-fit:cover;border-radius:50%;border:4px solid var(--gold)">`:'<div class="avatar" style="width:110px;height:110px;margin:auto;font-size:35px">👤</div>'}<h2>${esc(p.display_name||"Player")}</h2><span class="pill">${esc(p.role||"player")}</span><div class="profile-details" style="text-align:left;color:var(--ink)"><div><small>eFootball ID</small><b style="color:var(--ink)">${esc(p.efootball_id||"Not Added")}</b></div><div><small>Device</small><b style="color:var(--ink)">${esc(p.device||"Not Added")}</b></div><div><small>Club</small><b style="color:var(--ink)">${esc(p.club_name||"Not Added")}</b></div></div><div class="grid dashboard-stats" style="margin-top:14px"><div class="card"><small>Matches Recorded</small><h3>${stats.length}</h3></div><div class="card"><small>Goals</small><h3>${goals}</h3></div><div class="card"><small>Assists</small><h3>${assists}</h3></div><div class="card"><small>Man of the Match</small><h3>${motm}</h3></div></div></div>`;
+  document.querySelectorAll(".page").forEach(x=>x.classList.add("hidden"));page.classList.remove("hidden");window.scrollTo(0,0);
+}
+
+/* AWARDS CENTER — calculated from admin-entered match player statistics */
+function setAwardTab(tab,button){awardTab=tab;document.querySelectorAll("#awardTabs .tab").forEach(x=>x.classList.remove("active"));button?.classList.add("active");renderAwards();}
+function awardScore(rows){return rows.reduce((n,s)=>n+Number(s.goals||0)*3+Number(s.assists||0)*2+(s.is_motm?2:0),0);}
+function renderAwards(){
+ const box=$("awardList");if(!box)return;
+ const now=new Date();let rows=playerMatchStats.filter(s=>s.player_id);
+ if(awardTab==="motm") rows=rows.filter(s=>s.is_motm);
+ else if(awardTab==="week") rows=rows.filter(s=>{const d=new Date(s.played_at||s.created_at);return (now-d)<=7*86400000;});
+ else if(awardTab==="month") rows=rows.filter(s=>{const d=new Date(s.played_at||s.created_at);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();});
+ else if(awardTab==="year") rows=rows.filter(s=>new Date(s.played_at||s.created_at).getFullYear()===now.getFullYear());
+ else if(awardTab==="season") rows=rows.filter(s=>{const t=tournaments.find(x=>String(x.id)===String(s.tournament_id));return t&&t.season=== (tournaments.find(x=>x.season)?.season||t.season);});
+ const groups=new Map();
+ rows.forEach(s=>{const id=String(s.player_id);if(!groups.has(id))groups.set(id,[]);groups.get(id).push(s);});
+ let leaders=[...groups.entries()].map(([id,list])=>({player:players.find(p=>String(p.id)===id),rows:list,score:awardScore(list)})).filter(x=>x.player);
+ leaders.sort((a,b)=>awardTab==="motm"?b.rows.length-a.rows.length:b.score-a.score);
+ if(awardTab==="tournament"){
+   const tournamentGroups=new Map();rows.forEach(s=>{const key=String(s.tournament_id);if(!tournamentGroups.has(key))tournamentGroups.set(key,[]);tournamentGroups.get(key).push(s);});
+   leaders=[...tournamentGroups.entries()].flatMap(([tid,list])=>{const byPlayer=new Map();list.forEach(s=>{const k=String(s.player_id);if(!byPlayer.has(k))byPlayer.set(k,[]);byPlayer.get(k).push(s);});return [...byPlayer.entries()].map(([id,r])=>({player:players.find(p=>String(p.id)===id),rows:r,score:awardScore(r),tournament:tournaments.find(t=>String(t.id)===tid)}));}).filter(x=>x.player).sort((a,b)=>b.score-a.score);
+ }
+ box.innerHTML=leaders.slice(0,20).map((x,i)=>`<div class="card" style="text-align:center">${x.player.avatar_url?`<img src="${esc(x.player.avatar_url)}" style="width:76px;height:76px;border-radius:50%;object-fit:cover">`:'<div class="avatar" style="width:76px;height:76px;margin:auto;font-size:26px">👤</div>'}<p class="pill gold">${i===0?"🏆 TOP PLAYER":"#"+(i+1)}</p><h3>${esc(x.player.display_name)}</h3><p class="muted">${esc(x.tournament?.name||"AOS Player Awards")}</p><div class="grid"><div><b>${x.rows.reduce((n,s)=>n+Number(s.goals||0),0)}</b><small style="display:block">Goals</small></div><div><b>${x.rows.reduce((n,s)=>n+Number(s.assists||0),0)}</b><small style="display:block">Assists</small></div><div><b>${x.rows.filter(s=>s.is_motm).length}</b><small style="display:block">MOTM</small></div></div><h3>${x.score} Points</h3><button class="btn" onclick="downloadAwardCard('${x.player.id}','${awardTab}',${x.score})">Download Award Card</button></div>`).join("")||'<div class="empty">এখনো এই Award-এর জন্য Match Player Stats জমা হয়নি। Admin Panel থেকে Match Stats update করুন।</div>';
+}
+function downloadAwardCard(playerId,category,score){
+ const p=players.find(x=>String(x.id)===String(playerId));if(!p)return;
+ const c=document.createElement("canvas");c.width=1200;c.height=700;const x=c.getContext("2d");
+ const g=x.createLinearGradient(0,0,1200,700);g.addColorStop(0,"#101b35");g.addColorStop(1,"#24558f");x.fillStyle=g;x.fillRect(0,0,1200,700);
+ x.strokeStyle="#f3c44f";x.lineWidth=12;x.strokeRect(28,28,1144,644);
+ x.textAlign="center";x.fillStyle="#f3c44f";x.font="bold 42px Arial";x.fillText("ANCESTOR OF SYLHET",600,120);
+ x.fillStyle="#fff";x.font="bold 62px Arial";x.fillText("PLAYER AWARD",600,245);
+ x.font="bold 54px Arial";x.fillText(p.display_name||"AOS Player",600,365);
+ x.fillStyle="#f3c44f";x.font="bold 42px Arial";x.fillText(category.toUpperCase().replace("MOTM","MAN OF THE MATCH"),600,455);
+ x.fillStyle="#fff";x.font="bold 34px Arial";x.fillText("PERFORMANCE POINTS: "+score,600,540);
+ x.font="24px Arial";x.fillText("OFFICIAL AOS TOURNAMENT CENTER",600,615);
+ const a=document.createElement("a");a.download="AOS-Award-"+(p.display_name||"Player").replace(/[^a-z0-9]+/gi,"-")+".png";a.href=c.toDataURL("image/png");a.click();
+}
+function ensurePlayerStatsAdminUI(){
+ const area=$("adminArea");if(!area||$("playerStatsAdminCard"))return;
+ area.insertAdjacentHTML("beforeend",`<div class="card" id="playerStatsAdminCard" style="margin-top:14px"><h3>Update Match Player Stats</h3><p class="muted">প্রতিটি Match-এর পর Player-এর Goals, Assists ও Man of the Match নির্বাচন করুন।</p><div class="form"><div class="field"><label>Completed Match</label><select id="statMatch"></select></div><div class="field"><label>Player</label><select id="statPlayer"></select></div><div class="field"><label>Goals</label><input id="statGoals" type="number" min="0" value="0"></div><div class="field"><label>Assists</label><input id="statAssists" type="number" min="0" value="0"></div><div class="field full"><label><input id="statMotm" type="checkbox"> Man of the Match</label></div><div class="field full"><button class="btn green" onclick="savePlayerMatchStats()">Save Player Stats</button></div></div></div>`);
+}
+function setupPlayerStatsAdminUI(){
+ ensurePlayerStatsAdminUI();if(!$("statMatch"))return;
+ const completed=matches.filter(m=>m.status==="completed");
+ fillSelect("statMatch",completed,"Select Completed Match",m=>m.id,m=>`${m.home?.name||"Team"} vs ${m.away?.name||"Team"} · ${m.played_at?new Date(m.played_at).toLocaleDateString():"Completed"}`);
+ fillSelect("statPlayer",players.filter(p=>p.display_name),"Select Player",p=>p.id,p=>p.display_name);
+}
+async function savePlayerMatchStats(){
+ if(!requireAdmin())return;
+ const match=matches.find(m=>String(m.id)===$("statMatch").value),playerId=$("statPlayer").value;
+ if(!match||!playerId)return msg("Match ও Player নির্বাচন করুন।","error");
+ const payload={match_id:match.id,tournament_id:match.tournament_id,player_id:playerId,goals:Number($("statGoals").value||0),assists:Number($("statAssists").value||0),is_motm:$("statMotm").checked,played_at:match.played_at||new Date().toISOString(),created_by:me.id};
+ const {error}=await db.from("player_match_stats").upsert(payload,{onConflict:"match_id,player_id"});
+ if(error)return msg("Player Stats Save Error: "+error.message+" — Supabase SQL migration চালানো হয়েছে কি না দেখুন।","error");
+ msg("Player Match Stats Save হয়েছে। Award Ranking আপডেট হচ্ছে।","success");await loadAll();
+}
+function renderManagement(){
+ const box=$("managementList");if(!box)return;
+ const admins=players.filter(p=>["admin","moderator"].includes(String(p.role||"").toLowerCase()));
+ box.innerHTML=admins.map(p=>`<div class="card" style="text-align:center">${p.avatar_url?`<img src="${esc(p.avatar_url)}" style="width:92px;height:92px;border-radius:50%;object-fit:cover;border:3px solid var(--gold)">`:'<div class="avatar" style="width:92px;height:92px;margin:auto;font-size:30px">🛡</div>'}<h3>${esc(p.display_name||"AOS Management")}</h3><span class="pill">${String(p.role).toLowerCase()==="admin"?"Administrator":"Moderator"}</span><p class="muted">${esc(p.club_name||"Ancestor of Sylhet")}</p></div>`).join("")||'<div class="empty">এখনো কোনো Admin/Moderator Profile পাওয়া যায়নি। Admin/Moderator account-এ নাম ও Photo যুক্ত করুন।</div>';
+}
+\n// Main Render Function
 function render() {
   setupAuctionTournamentSelect();
   setupAuctionArenaTournamentSelect();
