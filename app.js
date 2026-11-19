@@ -2459,126 +2459,39 @@ $("standingList").innerHTML=`<div class="tablewrap"><table><thead><tr><th>#</th>
 
 // AUCTION ARENA
 const arenaPlayers = auctionTournamentId
-  ? auctionPlayers.filter(a =>
-      String(a.tournament_id) === String(auctionTournamentId)
-    ).sort((a,b)=>(Number(a.serial_no||999999)-Number(b.serial_no||999999))||new Date(a.created_at)-new Date(b.created_at))
+  ? auctionPlayers.filter(a=>String(a.tournament_id)===String(auctionTournamentId)).sort((a,b)=>(Number(a.serial_no||999999)-Number(b.serial_no||999999))||new Date(a.created_at)-new Date(b.created_at))
   : [];
 const activeLotId=auctionRoom?.current_player_id||"";
 const roomLive=auctionRoom?.room_status==="live";
 const auctionStaff=["admin","moderator"].includes(String(role).toLowerCase());
-
-$("auctionList").innerHTML = !auctionTournamentId
-  ? '<div class="empty">আগে Auction Tournament নির্বাচন করুন।</div>'
-  : arenaPlayers.map(a=>{
-
-  const bids=auctionBids
-    .filter(b=>String(b.auction_player_id)===String(a.id))
-    .sort((x,y)=>Number(y.amount)-Number(x.amount));
-
-  const highestBid=bids[0]||null;
-  const isActiveLot=roomLive&&String(activeLotId)===String(a.id);
-  const canBidTeams=auctionTeams.filter(t=>{const cfg=auctionTeamSettings.find(x=>String(x.team_id)===String(t.id));return !!cfg&&(String(cfg.captain_id||"")===String(me?.id||"")||String(cfg.manager_id||"")===String(me?.id||""));});
-
-  const bidHistory=bids.slice(0,5).map((b,i)=>`
-    <div class="muted" style="font-size:12px;margin-top:5px">
-      ${i+1}. ${esc(b.team?.name||"Team")}
-      — <b>${Number(b.amount).toLocaleString()}</b>
-    </div>
-  `).join("");
-
-  const teamOptions = canBidTeams.map(t => { const cfg=auctionTeamSettings.find(x=>String(x.team_id)===String(t.id))||{}; return '<option value="'+esc(t.id)+'">'+esc(t.name)+' · Budget '+Number(cfg.budget_remaining??t.budget??0).toLocaleString()+'</option>'; }).join("");
-
-  return `
-    <div class="item" style="display:block;margin-bottom:12px">
-
-      <div style="display:flex;align-items:center;gap:10px">
-        ${a.profile?.avatar_url?`<img src="${esc(a.profile.avatar_url)}" alt="Player Photo" style="width:68px;height:68px;object-fit:cover;border-radius:14px">`:'<div class="avatar" style="width:68px;height:68px;border-radius:14px">👤</div>'}
-
-        <div class="grow">
-          <b>${a.serial_no?"#"+a.serial_no+" · ":""}${esc(a.profile?.display_name||"Auction Player")}</b>
-          <small style="display:block">Device: ${esc(a.profile?.device||"Not Added")}</small>
-          <small style="display:block">User ID: ${esc(a.profile?.efootball_id||"N/A")}</small>
-        </div>
-
-        <span class="pill">
-          ${esc(a.status)}
-        </span>
-      </div>
-
-      <div style="margin-top:12px">
-        <div class="muted">
-          Base Price:
-          <b>${Number(a.base_price||0).toLocaleString()}</b>
-        </div>
-
-        <div style="margin-top:5px">
-          Highest Bid:
-          <b style="color:#16a34a">
-            ${highestBid
-              ? Number(highestBid.amount).toLocaleString()
-              : "No Bid"}
-          </b>
-        </div>
-
-        ${highestBid?`
-          <small class="muted">
-            Highest bidder: ${esc(highestBid.team?.name||"Team")}
-          </small>
-        `:""}
-        ${isActiveLot?`<div style="margin-top:8px"><span class="pill gold">LIVE CALL: ${["Bidding","1","2","3","LAST CALL"][Number(auctionRoom?.call_stage||0)]||"Bidding"}</span></div>`:""}
-      </div>
-
-      ${a.status==="available"?`
-
-        <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:12px">
-
-          <select
-            id="team-${a.id}"
-            style="flex:1;min-width:140px"
-            ${canBidTeams.length === 0 ? "disabled" : ""}
-          >
-            <option value="">
-              ${canBidTeams.length ? "Your Team" : "Captain/Manager Access নেই"}
-            </option>
-            ${teamOptions}
-          </select>
-
-          ${isActiveLot && canBidTeams.length ? `<button class="btn" onclick="placeBid('${a.id}',$('team-${a.id}').value)">Place Bid</button>` : `<small class="muted">Admin এই Player-কে Live করলে Bid শুরু হবে।</small>`}
-
-          ${["admin","moderator"].includes(role)&&isActiveLot&&Number(auctionRoom?.call_stage||0)>=4?`<button class="btn green" onclick="buyPlayer('${a.id}',$('team-${a.id}').value)">SOLD</button>`:""}
-          ${["admin","moderator"].includes(role)&&isActiveLot&&bids.length===0?`<button class="btn light" onclick="markAuctionUnsold('${a.id}')">Mark Unsold</button>`:""}
-
-        </div>
-
-      `:`
-        <div style="margin-top:10px">
-          <span class="pill">
-            Sold To: ${esc(a.team?.name||"Unknown Team")}
-          </span>
-          <p class="muted">
-            Sold Price: ${Number(a.sold_price||0).toLocaleString()} pts
-          </p>
-        </div>
-      `}
-
-      ${bids.length?`
-        <details style="margin-top:12px">
-          <summary style="cursor:pointer">
-            Bid History (${bids.length})
-          </summary>
-          ${bidHistory}
-        </details>
-      `:`
-        <small class="muted" style="display:block;margin-top:10px">
-          এখনো কোনো Bid জমা হয়নি।
-        </small>
-      `}
-
-    </div>
-  `;
-}).join("") || '<div class="empty">এই Tournament-এর Auction Pool খালি।</div>';
-
-
+const currentLot=arenaPlayers.find(a=>String(a.id)===String(activeLotId))||null;
+const lotBids=currentLot?auctionBids.filter(b=>String(b.auction_player_id)===String(currentLot.id)).sort((x,y)=>Number(y.amount)-Number(x.amount)): [];
+const highestBid=lotBids[0]||null;
+const myBidTeams=auctionTeams.filter(t=>{const cfg=auctionTeamSettings.find(x=>String(x.team_id)===String(t.id));return !!cfg&&(String(cfg.captain_id||"")===String(me?.id||"")||String(cfg.manager_id||"")===String(me?.id||""));});
+const bidTeamOptions=myBidTeams.map(t=>'<option value="'+esc(t.id)+'">'+esc(t.name)+'</option>').join("");
+const stage=Number(auctionRoom?.call_stage||0);
+const stageLabels=["BIDDING","1","2","3","LAST CALL"];
+const stageText=stageLabels[stage]||"WAITING";
+const callSteps=["BID OPEN","1","2","3","LAST CALL"];
+const bidTeamRows=auctionTeams.map(t=>{
+  const cfg=auctionTeamSettings.find(x=>String(x.team_id)===String(t.id))||{};
+  const top=lotBids.filter(b=>String(b.team_id)===String(t.id)).sort((x,y)=>Number(y.amount)-Number(x.amount))[0];
+  return {team:t,cfg,top};
+}).sort((x,y)=>Number(y.top?.amount||0)-Number(x.top?.amount||0));
+const bidTeamMarkup=bidTeamRows.map((x,i)=>'<div class="auction-team-bid-row '+(i===0&&x.top?'leading':'')+'">'+(x.team.logo_url?'<img src="'+esc(x.team.logo_url)+'">':'<div class="avatar">🏆</div>')+'<div class="grow"><b>'+esc(x.team.name)+'</b><small>'+(x.top?'Highest bid by this team':'No bid yet')+' · Left '+Number(x.cfg.budget_remaining??x.team.budget??0).toLocaleString()+'</small></div><strong>'+(x.top?Number(x.top.amount).toLocaleString():'—')+'</strong></div>').join("");
+const callMarkup=callSteps.map((label,i)=>'<div class="auction-call-step '+(i<stage?'done':i===stage?'active':'')+' '+(i===4?'last':'')+'"><span>'+(i===4?'★':i===0?'↗':i)+'</span>'+label+'</div>').join("");
+if(!auctionTournamentId){
+  $("auctionList").innerHTML='<div class="empty">Auction Tournament নির্বাচন করলে Live Bidding Board দেখা যাবে।</div>';
+}else{
+  const playerPhoto=currentLot?.profile?.avatar_url;
+  const bidSelect=myBidTeams.length?'<select id="auctionLiveTeam"><option value="">Select Your Team</option>'+bidTeamOptions+'</select>':'<select disabled><option>Captain / Manager Access নেই</option></select>';
+  const bidButton=currentLot&&currentLot.status==="available"&&roomLive&&myBidTeams.length?'<button class="btn green" onclick="placeBid(\''+currentLot.id+'\',$("auctionLiveTeam").value)">Place Bid</button>':'<button class="btn green" disabled>Place Bid</button>';
+  const staffActions=currentLot&&auctionStaff&&stage>=4?'<button class="btn" onclick="buyPlayer(\''+currentLot.id+'\',$("auctionLiveTeam")?.value||\'\')">Confirm SOLD</button>':'';
+  const activePanel=currentLot?'<div class="auction-main-stage"><div class="auction-main-top"><b>⚡ CURRENT PLAYER ON AUCTION</b><span class="auction-live-state">'+(roomLive?'● '+stageText:'● '+String(auctionRoom?.room_status||'SETUP').toUpperCase())+'</span></div><div class="auction-player-focus">'+(playerPhoto?'<img class="auction-player-photo" src="'+esc(playerPhoto)+'" alt="Auction player">':'<div class="auction-player-photo auction-player-placeholder">👤</div>')+'<div class="auction-player-info"><div class="serial">AUCTION SERIAL #'+(currentLot.serial_no||'—')+'</div><h3>'+esc(currentLot.profile?.display_name||'Auction Player')+'</h3><p>'+esc(currentLot.profile?.device||'Device not added')+'</p><p>eFootball ID: '+esc(currentLot.profile?.efootball_id||'—')+'</p><div class="auction-base-price">BASE PRICE · '+Number(currentLot.base_price||0).toLocaleString()+'</div></div></div><div class="auction-bid-panel"><div class="auction-bid-label">CURRENT HIGHEST BID</div><div class="auction-current-amount">'+(highestBid?Number(highestBid.amount).toLocaleString():'No Bid Yet')+'</div><div class="auction-bid-by">'+(highestBid?'Leading: '+esc(highestBid.team?.name||'Team'):'Waiting for the first bid')+'</div><div class="auction-bid-controls">'+bidSelect+bidButton+staffActions+'</div></div><div class="auction-call-track">'+callMarkup+'</div></div>':'<div class="auction-main-stage"><div class="auction-main-top"><b>⚡ LIVE AUCTION STAGE</b><span class="auction-live-state">WAITING</span></div><div class="empty" style="margin:20px;background:#fff">Admin এখনো কোনো Player Live করেননি।</div></div>';
+  const lotsMarkup=arenaPlayers.map(a=>'<div class="auction-lot-row">'+(a.profile?.avatar_url?'<img src="'+esc(a.profile.avatar_url)+'">':'<div class="avatar">👤</div>')+'<div class="grow"><b>'+(a.serial_no?'#'+a.serial_no+' · ':'')+esc(a.profile?.display_name||'Player')+'</b><small>'+esc(a.status.toUpperCase())+(a.status==='sold'?' · Sold '+Number(a.sold_price||0).toLocaleString():' · Base '+Number(a.base_price||0).toLocaleString())+'</small></div>'+(String(a.id)===String(activeLotId)?'<span class="pill gold">LIVE</span>':'<span class="pill">'+esc(a.status)+'</span>')+'</div>').join("");
+  const historyMarkup=lotBids.slice(0,8).map((b,i)=>'<div class="auction-history-row"><span>'+(i+1)+'. '+esc(b.team?.name||'Team')+'</span><b>'+Number(b.amount).toLocaleString()+'</b></div>').join("")||'<div class="empty">এই Player-এর Bid History এখনো খালি।</div>';
+  $("auctionList").innerHTML='<div class="auction-board"><div>'+activePanel+'<div class="auction-bottom-grid"><div class="auction-side-card"><h3>👥 Auction Player Pool · '+arenaPlayers.length+'</h3><div class="auction-lot-list">'+(lotsMarkup||'<div class="empty">Auction Pool খালি।</div>')+'</div></div><div class="auction-side-card"><h3>📜 Current Player Bid History</h3>'+historyMarkup+'</div></div></div><aside class="auction-side-stack"><div class="auction-side-card"><h3>🏆 Team Bids & Budget</h3>'+(bidTeamMarkup||'<div class="empty">Team এখনো যুক্ত হয়নি।</div>')+'</div><div class="auction-side-card"><h3>📌 Auction Snapshot</h3><div class="auction-history-row"><span>Teams</span><b>'+auctionTeams.length+'</b></div><div class="auction-history-row"><span>Players in Pool</span><b>'+arenaPlayers.length+'</b></div><div class="auction-history-row"><span>Players Sold</span><b>'+arenaPlayers.filter(p=>p.status==="sold").length+'</b></div><div class="auction-history-row"><span>Current Call</span><b>'+stageText+'</b></div></div></aside></div>';
+}
 // ADMIN AUCTION PLAYER LIST
 $("adminAuction").innerHTML=auctionPlayers.map(a=>`
   <div class="item">
