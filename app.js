@@ -17,7 +17,7 @@ let selectedTournamentId="";
 let tournamentDetailTab="overview";
 let selectedTournamentTeams=[];
 let memberTournamentId="";
-let memberTeamId="";let auctionTournamentId = "";let auctionTournamentSettings=null,auctionTeamSettings=[],auctionRoom=null,auctionChatMessages=[],auctionRealtimeChannel=null,auctionCallTimer=null,auctionCallAdvancing=false;
+let memberTeamId="";let auctionTournamentId = "";let auctionTournamentSettings=null,auctionTeamSettings=[],auctionRoom=null,auctionChatMessages=[],auctionRealtimeChannel=null,auctionCallTimer=null,auctionCallAdvancing=false,auctionLastAnnouncedState="";
 const $=id=>document.getElementById(id), msg=(s,type="notice")=>{$("globalMsg").innerHTML=`<div class="notice ${type}">${esc(s)}</div>`;setTimeout(()=>{$("globalMsg").innerHTML=""},6500)};
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function toggleAOSSidebar(force){const side=$("aosSidebar"),shade=$("sidebarShade");if(!side||!shade)return;const open=typeof force==="boolean"?force:!side.classList.contains("open");side.classList.toggle("open",open);shade.classList.toggle("show",open);$("sidebarMenuBtn")?.setAttribute("aria-expanded",String(open));}function go(id){document.querySelectorAll(".page").forEach(x=>x.classList.add("hidden"));const page=$(id);if(!page)return;page.classList.remove("hidden");document.querySelectorAll(".bottom button,.top-nav button,.sidebar-link").forEach(x=>x.classList.toggle("active",x.dataset.id===id));toggleAOSSidebar(false);render();window.scrollTo(0,0)}
@@ -409,6 +409,17 @@ async function loadAuctionArenaData(tournamentId) {
   auctionTournamentSettings = settings.data || null;
   auctionTeamSettings = teamSettings.data || [];
   auctionRoom = room.data || null;
+  if(auctionRoom?.room_status==="live"){
+    const stage=Number(auctionRoom.call_stage||0);
+    const announcement=["","One","Two","Three","Last Call"][stage]||"";
+    const stateKey=[tournamentId,auctionRoom.current_player_id,stage].join(":");
+    if(announcement&&stateKey!==auctionLastAnnouncedState){
+      auctionLastAnnouncedState=stateKey;
+      if("speechSynthesis" in window){
+        try{window.speechSynthesis.cancel();const voiceLine=new SpeechSynthesisUtterance(announcement);voiceLine.lang="en-US";voiceLine.rate=0.9;window.speechSynthesis.speak(voiceLine);}catch(e){}
+      }
+    }else if(!announcement){auctionLastAnnouncedState=stateKey;}
+  }
   auctionChatMessages = (chat.data || []).reverse();
   if (settings.error) console.warn("Auction settings:",settings.error.message);
   if (teamSettings.error) console.warn("Auction team settings:",teamSettings.error.message);
