@@ -76,6 +76,9 @@ if(b.error){
   console.error("Auction bids loading error:",b.error);
   auctionBids=[];
 }
+const statsResult=await db.from("player_match_stats").select("*").order("created_at",{ascending:false});
+if(statsResult.error){console.warn("Player stats table not ready:",statsResult.error.message);playerMatchStats=[];}
+else{playerMatchStats=statsResult.data||[];}
 
 render();
 }
