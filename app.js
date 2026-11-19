@@ -559,7 +559,9 @@ function renderAuctionControlPanel() {
     const squad=auctionPlayers.filter(p=>String(p.tournament_id)===String(auctionTournamentId)&&String(p.team_id)===String(t.id)&&p.status==="sold");
     return '<details class="item" style="display:block"><summary style="cursor:pointer;display:flex;align-items:center;gap:10px">'+(t.logo_url?'<img src="'+esc(t.logo_url)+'" style="width:38px;height:38px;object-fit:contain;border-radius:8px">':'<div class="avatar">🏆</div>')+'<span class="grow"><b>'+esc(t.name)+'</b><small>Budget Left: '+Number(cfg.budget_remaining??t.budget??0).toLocaleString()+' · Players: '+squad.length+'</small></span></summary><div style="margin-top:12px">'+(squad.map(p=>'<div class="item" style="padding:8px;margin-top:6px">'+(p.profile?.avatar_url?'<img src="'+esc(p.profile.avatar_url)+'" style="width:40px;height:40px;object-fit:cover;border-radius:50%">':'<div class="avatar">👤</div>')+'<div class="grow"><b>'+esc(p.profile?.display_name||"Player")+'</b><small>Sold: '+Number(p.sold_price||0).toLocaleString()+'</small></div></div>').join("")||'<small class="muted">এখনো কোনো Player কেনা হয়নি।</small>')+'</div></details>';
   }).join("");
-  publicPanel.innerHTML='<div class="head" style="margin:0 0 12px"><h3>Teams, Budgets & Squads</h3><span class="pill">'+auctionTeams.length+' Teams</span></div>'+(budgetCards||'<div class="empty">এই Tournament-এ Team নেই।</div>');
+  const soldRanking=auctionPlayers.filter(p=>String(p.tournament_id)===String(auctionTournamentId)&&p.status==="sold").sort((a,b)=>Number(b.sold_price||0)-Number(a.sold_price||0)).map((p,i)=>{const team=auctionTeams.find(t=>String(t.id)===String(p.team_id));return '<div class="item"><b>#'+(i+1)+'</b>'+(p.profile?.avatar_url?'<img src="'+esc(p.profile.avatar_url)+'" style="width:42px;height:42px;object-fit:cover;border-radius:50%">':'<div class="avatar">👤</div>')+'<div class="grow"><b>'+esc(p.profile?.display_name||"Player")+'</b><small>'+esc(team?.name||"Team")+' · Auction Serial #'+(p.serial_no||"—")+'</small></div><b>'+Number(p.sold_price||0).toLocaleString()+' pts</b></div>';}).join("");
+  const budgetRank=[...auctionTeamSettings].sort((a,b)=>Number(b.budget_remaining||0)-Number(a.budget_remaining||0)).map((x,i)=>'<div class="item"><b>#'+(i+1)+'</b><div class="grow"><b>'+esc(x.team?.name||"Team")+'</b><small>Budget remaining</small></div><b>'+Number(x.budget_remaining||0).toLocaleString()+' pts</b></div>').join("");
+  publicPanel.innerHTML='<div class="head" style="margin:0 0 12px"><h3>Teams, Budgets & Squads</h3><span class="pill">'+auctionTeams.length+' Teams</span></div>'+(budgetCards||'<div class="empty">এই Tournament-এ Team নেই।</div>')+'<div class="head"><h3>Player Auction Ranking</h3><span class="pill gold">Highest Sold Price</span></div>'+(soldRanking||'<div class="empty">এখনো কোনো Player Sold হয়নি।</div>')+'<div class="head"><h3>Team Budget Ranking</h3></div>'+(budgetRank||'<div class="empty">Team Budget এখনো Configure করা হয়নি।</div>');
   renderAuctionChat();
   if(auctionRoom?.call_deadline)startAuctionCallTicker();
 }
@@ -2275,7 +2277,7 @@ $("standingList").innerHTML=`<div class="tablewrap"><table><thead><tr><th>#</th>
 const arenaPlayers = auctionTournamentId
   ? auctionPlayers.filter(a =>
       String(a.tournament_id) === String(auctionTournamentId)
-    )
+    ).sort((a,b)=>(Number(a.serial_no||999999)-Number(b.serial_no||999999))||new Date(a.created_at)-new Date(b.created_at))
   : [];
 const activeLotId=auctionRoom?.current_player_id||"";
 const roomLive=auctionRoom?.room_status==="live";
