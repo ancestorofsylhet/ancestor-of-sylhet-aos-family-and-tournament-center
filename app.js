@@ -6,6 +6,9 @@ const db=ready?window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_K
 let session=null,me=null,role="player",tournaments=[],teams=[],players=[],matches=[],standings=[],auctionPlayers=[],auctionBids=[],champions=[],auctionTeams=[];
 let myParticipation=[];
 let playerMatchStats=[];
+let managementMembers=[];
+let managementTableReady=false;
+let editingManagementId="";
 let awardTab="motm";
 let teamMembers=[];
 let selectedTournamentId="";
@@ -82,9 +85,15 @@ const statsResult=await db.from("player_match_stats").select("*").order("created
 if(statsResult.error){console.warn("Player stats table not ready:",statsResult.error.message);playerMatchStats=[];}
 else{playerMatchStats=statsResult.data||[];}
 
+const managementResult=await db.from("management_members").select("*").order("display_order",{ascending:true}).order("created_at",{ascending:true});
+managementTableReady=!managementResult.error;
+if(managementResult.error){console.warn("Management table not ready:",managementResult.error.message);managementMembers=[];}
+else{managementMembers=managementResult.data||[];}
+
 render();
 }
 function requireAdmin(){if(!me||!["admin","moderator"].includes(role)){msg("এই কাজের জন্য Admin/Moderator permission প্রয়োজন।","error");return false}return true}
+function requireMainAdmin(){if(!me||String(role).toLowerCase()!=="admin"){msg("Management Control Panel শুধু Main Admin ব্যবহার করতে পারবেন।","error");return false}return true}
 async function registerPlayer(){if(!me)return openAuth();let payload={id:me.id,display_name:$("pName").value.trim(),efootball_id:$("pEid").value.trim(),device:$("pDevice").value.trim(),club_name:$("pClub").value.trim()||"Ancestor of Sylhet"};if(!payload.display_name||!payload.efootball_id)return msg("Player Name ও eFootball ID দিন।","error");let r=await db.from("profiles").upsert(payload);if(r.error)return msg(r.error.message,"error");msg("Player profile submit হয়েছে।","success");await loadAll()}
 async function createTournament(){if(!requireAdmin())return;let x={name:$("tName").value.trim(),type:$("tType").value,season:$("tSeason").value,entry_fee:Number($("tFee").value||0),max_participants:Number($("tMax").value||16),status:$("tStatus").value,created_by:me.id};if(!x.name)return msg("Tournament name দিন।","error");let r=await db.from("tournaments").insert(x);if(r.error)return msg(r.error.message,"error");msg("Tournament তৈরি হয়েছে।","success");await loadAll()}
 async function createTeam() {
@@ -1827,8 +1836,70 @@ async function savePlayerMatchStats(){
 }
 function renderManagement(){
  const box=$("managementList");if(!box)return;
- const admins=players.filter(p=>["admin","moderator"].includes(String(p.role||"").toLowerCase()));
- box.innerHTML=admins.map(p=>`<div class="card" style="text-align:center">${p.avatar_url?`<img src="${esc(p.avatar_url)}" style="width:92px;height:92px;border-radius:50%;object-fit:cover;border:3px solid var(--gold)">`:'<div class="avatar" style="width:92px;height:92px;margin:auto;font-size:30px">🛡</div>'}<h3>${esc(p.display_name||"AOS Management")}</h3><span class="pill">${String(p.role).toLowerCase()==="admin"?"Administrator":"Moderator"}</span><p class="muted">${esc(p.club_name||"Ancestor of Sylhet")}</p></div>`).join("")||'<div class="empty">এখনো কোনো Admin/Moderator Profile পাওয়া যায়নি। Admin/Moderator account-এ নাম ও Photo যুক্ত করুন।</div>';
+ const panel=$("managementAdminPanel");
+ if(panel)panel.classList.toggle("hidden",!me||String(role).toLowerCase()!=="admin");
+ const records=managementTableReady
+   ? managementMembers.filter(m=>m.is_active)
+   : players.filter(p=>["admin","moderator"].includes(String(p.role||"").toLowerCase())).map(p=>({id:p.id,name:p.display_name,position:String(p.role).toLowerCase()==="admin"?"Administrator":"Moderator",department:"AOS Management",photo_url:p.avatar_url,responsibilities:p.club_name,is_active:true}));
+ box.innerHTML=records.map(m=>`<div class="card" style="text-align:center">${m.photo_url?`<img src="${esc(m.photo_url)}" alt="${esc(m.name)}" style="width:96px;height:96px;border-radius:50%;object-fit:cover;border:3px solid var(--gold)">`:'<div class="avatar" style="width:96px;height:96px;margin:auto;font-size:30px">🛡</div>'}<h3>${esc(m.name||"AOS Management")}</h3><span class="pill">${esc(m.position||"Management Member")}</span><p class="muted">${esc(m.department||"Ancestor of Sylhet")}</p>${m.responsibilities?`<p>${esc(m.responsibilities)}</p>`:""}</div>`).join("")||'<div class="empty">এখনো কোনো Management Member যুক্ত করা হয়নি।</div>';
+ const adminList=$("managementAdminList");
+ if(adminList){
+   adminList.innerHTML=managementMembers.map(m=>`<div class="item"><div class="grow"><b>${esc(m.name)}</b><small>${esc(m.position)} · ${m.is_active?"Public":"Hidden"}</small></div><button class="btn light" onclick="editManagementMember('${esc(m.id)}')">Edit</button><button class="btn danger" onclick="deleteManagementMember('${esc(m.id)}')">Delete</button></div>`).join("")||'<div class="empty">কোনো সদস্য নেই। উপরের ফর্ম থেকে প্রথম সদস্য যোগ করুন।</div>';
+ }
+}
+function resetManagementForm(){
+ editingManagementId="";
+ ["managementName","managementPosition","managementDepartment","managementPhoto","managementResponsibilities","managementOrder"].forEach(id=>{const el=$(id);if(el)el.value=id==="managementOrder"?"0":"";});
+ if($("managementActive"))$("managementActive").checked=true;
+ const heading=$("managementFormTitle");if(heading)heading.textContent="Add Management Member";
+ const save=$("managementSaveButton");if(save)save.textContent="Save Member";
+}
+function editManagementMember(id){
+ if(!requireMainAdmin())return;
+ const m=managementMembers.find(x=>String(x.id)===String(id));if(!m)return;
+ editingManagementId=String(m.id);
+ $("managementName").value=m.name||"";
+ $("managementPosition").value=m.position||"";
+ $("managementDepartment").value=m.department||"";
+ $("managementPhoto").value=m.photo_url||"";
+ $("managementResponsibilities").value=m.responsibilities||"";
+ $("managementOrder").value=Number(m.display_order||0);
+ $("managementActive").checked=!!m.is_active;
+ $("managementFormTitle").textContent="Edit Management Member";
+ $("managementSaveButton").textContent="Update Member";
+ $("managementName").focus();
+}
+async function saveManagementMember(){
+ if(!requireMainAdmin())return;
+ const name=$("managementName").value.trim();
+ const position=$("managementPosition").value.trim();
+ const photo=$("managementPhoto").value.trim();
+ if(!name||!position)return msg("সদস্যের নাম ও পদবি লিখুন।","error");
+ if(photo){try{const u=new URL(photo);if(!["http:","https:"].includes(u.protocol))throw new Error("invalid");}catch(_e){return msg("Photo URL অবশ্যই http বা https দিয়ে শুরু হতে হবে।","error");}}
+ const payload={
+   name,position,
+   department:$("managementDepartment").value.trim(),
+   photo_url:photo||null,
+   responsibilities:$("managementResponsibilities").value.trim(),
+   display_order:Number($("managementOrder").value||0),
+   is_active:$("managementActive").checked
+ };
+ const result=editingManagementId
+   ? await db.from("management_members").update(payload).eq("id",editingManagementId)
+   : await db.from("management_members").insert({...payload,created_by:me.id});
+ if(result.error)return msg("Management Member Save Error: "+result.error.message+" — Supabase migration চালানো হয়েছে কি না দেখুন।","error");
+ msg(editingManagementId?"Management Member update হয়েছে।":"নতুন Management Member যোগ হয়েছে।","success");
+ resetManagementForm();
+ await loadAll();
+}
+async function deleteManagementMember(id){
+ if(!requireMainAdmin())return;
+ const m=managementMembers.find(x=>String(x.id)===String(id));
+ if(!m||!confirm("এই Management Member-কে delete করবেন?"))return;
+ const {error}=await db.from("management_members").delete().eq("id",id);
+ if(error)return msg("Delete করা যায়নি: "+error.message,"error");
+ msg("Management Member delete হয়েছে।","success");
+ await loadAll();
 }
 
 // Main Render Function
