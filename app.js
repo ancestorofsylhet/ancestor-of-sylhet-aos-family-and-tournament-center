@@ -2221,6 +2221,7 @@ $("champList").innerHTML = champions.map(c => `
 
 $("adminGate").classList.toggle("hidden",["admin","moderator"].includes(role));$("adminArea").classList.toggle("hidden",!["admin","moderator"].includes(role));$("roleBadge").textContent=role;
 renderPlayerDashboard();
+if(me)loadMyProfileRequests();
 
 const selectedBracketId = $("bracketTournament")?.value;
 
