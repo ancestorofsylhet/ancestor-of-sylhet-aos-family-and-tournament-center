@@ -4,7 +4,9 @@ const cfg=window.AOS_CONFIG||{};
 const ready=!!(cfg.SUPABASE_URL&&cfg.SUPABASE_ANON_KEY&&!cfg.SUPABASE_URL.includes("YOUR_")&&!cfg.SUPABASE_ANON_KEY.includes("YOUR_"));
 const db=ready?window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_KEY):null;
 let session=null,me=null,role="player",tournaments=[],teams=[],players=[],matches=[],standings=[],auctionPlayers=[],auctionBids=[],champions=[],auctionTeams=[];
-let myParticipation=[];\nlet playerMatchStats=[];\nlet awardTab="motm";
+let myParticipation=[];
+let playerMatchStats=[];
+let awardTab="motm";
 let teamMembers=[];
 let selectedTournamentId="";
 let tournamentDetailTab="overview";
@@ -1830,6 +1832,10 @@ function renderManagement(){
 }
 \n// Main Render Function
 function render() {
+  renderPublicPlayers();
+  renderAwards();
+  renderManagement();
+  setupPlayerStatsAdminUI();
   setupAuctionTournamentSelect();
   setupAuctionArenaTournamentSelect();
   setupAuctionProfileSelect();
