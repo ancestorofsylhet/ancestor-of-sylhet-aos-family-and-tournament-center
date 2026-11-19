@@ -707,7 +707,12 @@ function renderAuctionControlPanel(){
   setupPanel.innerHTML='<div class="empty">Tournament নির্বাচন করুন।</div>';
   teamsPanel.innerHTML='<div class="empty">Tournament নির্বাচন করুন।</div>';
   rankingPanel.innerHTML='<div class="empty">Tournament নির্বাচন করুন।</div>';
-  $("auctionMatchCenter").innerHTML='<div class="empty">Tournament নির্বাচন করুন।</div>';renderAuctionChat();return;
+  $("auctionMatchCenter").innerHTML='<div class="empty">Tournament নির্বাচন করুন।</div>';
+  panel.classList.toggle("hidden",auctionArenaTab!=="control");
+  setupPanel.classList.toggle("hidden",auctionArenaTab!=="teams");
+  teamsPanel.classList.toggle("hidden",auctionArenaTab!=="squads");
+  rankingPanel.classList.toggle("hidden",auctionArenaTab!=="ranking");
+  renderAuctionChat();return;
  }
  const isMainAdmin=String(role).toLowerCase()==="admin",staff=["admin","moderator"].includes(String(role).toLowerCase());
  const settings=auctionTournamentSettings||{base_price:100,initial_budget:10000,min_increment:100,max_squad_size:10};
