@@ -1847,9 +1847,20 @@ function renderManagement(){
    adminList.innerHTML=managementMembers.map(m=>`<div class="item"><div class="grow"><b>${esc(m.name)}</b><small>${esc(m.position)} · ${m.is_active?"Public":"Hidden"}</small></div><button class="btn light" onclick="editManagementMember('${esc(m.id)}')">Edit</button><button class="btn danger" onclick="deleteManagementMember('${esc(m.id)}')">Delete</button></div>`).join("")||'<div class="empty">কোনো সদস্য নেই। উপরের ফর্ম থেকে প্রথম সদস্য যোগ করুন।</div>';
  }
 }
+function previewManagementPhoto(input){
+ const preview=$("managementPhotoPreview");
+ const file=input?.files?.[0];
+ if(!preview)return;
+ if(!file){preview.src="";preview.classList.add("hidden");return;}
+ if(!file.type.startsWith("image/")){input.value="";return msg("শুধু Image file নির্বাচন করুন।","error");}
+ if(file.size>5*1024*1024){input.value="";return msg("ছবির সাইজ 5MB-এর মধ্যে রাখুন।","error");}
+ preview.src=URL.createObjectURL(file);preview.classList.remove("hidden");
+}
 function resetManagementForm(){
  editingManagementId="";
- ["managementName","managementPosition","managementDepartment","managementPhoto","managementResponsibilities","managementOrder"].forEach(id=>{const el=$(id);if(el)el.value=id==="managementOrder"?"0":"";});
+ ["managementName","managementPosition","managementDepartment","managementResponsibilities","managementOrder"].forEach(id=>{const el=$(id);if(el)el.value=id==="managementOrder"?"0":"";});
+ if($("managementPhotoFile"))$("managementPhotoFile").value="";
+ const preview=$("managementPhotoPreview");if(preview){preview.src="";preview.classList.add("hidden");}
  if($("managementActive"))$("managementActive").checked=true;
  const heading=$("managementFormTitle");if(heading)heading.textContent="Add Management Member";
  const save=$("managementSaveButton");if(save)save.textContent="Save Member";
@@ -1861,7 +1872,9 @@ function editManagementMember(id){
  $("managementName").value=m.name||"";
  $("managementPosition").value=m.position||"";
  $("managementDepartment").value=m.department||"";
- $("managementPhoto").value=m.photo_url||"";
+ $("managementPhotoFile").value="";
+ const preview=$("managementPhotoPreview");if(preview){if(m.photo_url){preview.src=m.photo_url;preview.classList.remove("hidden");}else{preview.src="";preview.classList.add("hidden");}}
+ $("managementPhotoFile").dataset.existingUrl=m.photo_url||"";
  $("managementResponsibilities").value=m.responsibilities||"";
  $("managementOrder").value=Number(m.display_order||0);
  $("managementActive").checked=!!m.is_active;
@@ -1873,13 +1886,23 @@ async function saveManagementMember(){
  if(!requireMainAdmin())return;
  const name=$("managementName").value.trim();
  const position=$("managementPosition").value.trim();
- const photo=$("managementPhoto").value.trim();
+ const photoInput=$("managementPhotoFile");
+ const photoFile=photoInput?.files?.[0]||null;
  if(!name||!position)return msg("সদস্যের নাম ও পদবি লিখুন।","error");
- if(photo){try{const u=new URL(photo);if(!["http:","https:"].includes(u.protocol))throw new Error("invalid");}catch(_e){return msg("Photo URL অবশ্যই http বা https দিয়ে শুরু হতে হবে।","error");}}
+ let photoUrl=photoInput?.dataset?.existingUrl||managementMembers.find(m=>String(m.id)===editingManagementId)?.photo_url||null;
+ if(photoFile){
+   if(!photoFile.type.startsWith("image/"))return msg("শুধু Image file নির্বাচন করুন।","error");
+   if(photoFile.size>5*1024*1024)return msg("ছবির সাইজ 5MB-এর মধ্যে রাখুন।","error");
+   const ext=(photoFile.name.split(".").pop()||"jpg").toLowerCase().replace(/[^a-z0-9]/g,"")||"jpg";
+   const path=`management/${me.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+   const upload=await db.storage.from("management-photos").upload(path,photoFile,{upsert:false,contentType:photoFile.type});
+   if(upload.error)return msg("ছবি Upload হয়নি: "+upload.error.message+"। Storage SQL চালানো হয়েছে কি না দেখুন।","error");
+   photoUrl=db.storage.from("management-photos").getPublicUrl(path).data.publicUrl;
+ }
  const payload={
    name,position,
    department:$("managementDepartment").value.trim(),
-   photo_url:photo||null,
+   photo_url:photoUrl,
    responsibilities:$("managementResponsibilities").value.trim(),
    display_order:Number($("managementOrder").value||0),
    is_active:$("managementActive").checked
