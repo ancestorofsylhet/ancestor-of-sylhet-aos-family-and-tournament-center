@@ -2015,6 +2015,11 @@ async function removeRegisteredPlayer(id){
  msg("Player Website থেকে Remove করা হয়েছে।","success");await loadAll();
 }
 
+function renderHomePlayer(p){
+ const initial=esc((p.display_name||'?')[0].toUpperCase());
+ const photo=p.avatar_url?'<img src="'+esc(p.avatar_url)+'" alt="'+esc(p.display_name||'Player')+' photo" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'grid\'">':'';
+ return '<div class="item home-player-item"><div class="home-player-avatar">'+photo+'<span '+(p.avatar_url?'style="display:none"':'')+'>'+initial+'</span></div><div class="grow"><b>'+esc(p.display_name||'Player')+'</b><small>'+esc(p.club_name||'Ancestor of Sylhet')+' · '+esc(p.efootball_id||'')+'</small></div><span class="pill">Player</span></div>';
+}
 function render() {
   renderTournamentCardMaker();
   renderPublicPlayers();
@@ -2044,7 +2049,7 @@ $("nM").textContent=matches.length;
 const recentMatches=[...matches].sort((x,y)=>new Date(y.played_at||y.created_at||0)-new Date(x.played_at||x.created_at||0)).slice(0,5);
 $("homeMatches").innerHTML=recentMatches.map(m=>`<div class="item"><div class="grow"><b>${esc(m.home?.name||"TBD")} vs ${esc(m.away?.name||"TBD")}</b><small>Round ${m.round_no||"—"} · ${esc(m.status||"scheduled")}</small></div><b>${m.home_score??"—"} : ${m.away_score??"—"}</b></div>`).join("")||'<div class="empty">এখনো কোনো Match/Fixture যোগ করা হয়নি।</div>';
 const recentPlayers=[...players].filter(p=>p.display_name).slice(0,5);
-$("homePlayers").innerHTML=recentPlayers.map(p=>`<div class="item"><div class="avatar">${esc((p.display_name||"?")[0])}</div><div class="grow"><b>${esc(p.display_name)}</b><small>${esc(p.club_name||"Ancestor of Sylhet")} · ${esc(p.efootball_id||"")}</small></div><span class="pill">Player</span></div>`).join("")||'<div class="empty">এখনো কোনো Player Register করেনি।</div>';
+$("homePlayers").innerHTML=recentPlayers.map(renderHomePlayer).join("")||'<div class="empty">এখনো কোনো Player Register করেনি।</div>';
 const tc=tournaments.map(t=>`<div class="card"><span class="pill">${esc(t.type||"Tournament")}</span><h3>${esc(t.name)}</h3><p class="muted">${esc(t.season||"")} · ${esc(t.status||"")}</p><p class="muted">Entry: ${Number(t.entry_fee||0)} · Max: ${t.max_participants||"—"}</p><button class="btn" onclick="openTournament('${t.id}')">Open Tournament</button>${role==="admin"||role==="moderator"?` <button class="btn light" onclick="deleteTournament('${t.id}')">Delete</button>`:""}</div>`).join("")||'<div class="empty">এখনো Tournament নেই</div>';$('homeTours').innerHTML=tc;$('tourList').innerHTML=tc;
 
 $("playerList").innerHTML=players.map((p,i)=>`<div class="item"><div class="avatar">${esc((p.display_name||"?")[0])}</div><div class="grow"><b>${esc(p.display_name||"Player")}</b><small>${esc(p.club_name||"")} · ${esc(p.efootball_id||"")}</small></div><span class="pill">${esc(p.role||"player")}</span></div>`).join("")||'<div class="empty">কোনো Player নেই</div>';
