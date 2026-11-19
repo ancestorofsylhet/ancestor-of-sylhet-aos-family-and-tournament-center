@@ -376,6 +376,60 @@ header{gap:18px;height:78px;padding-left:max(18px,calc((100% - 1320px)/2));paddi
 .auction-arena-main-tabs .auction-dashboard-tab{grid-column:1/-1;min-height:76px;font-size:17px;letter-spacing:.4px;background:linear-gradient(120deg,#123d2c,#1c6b49);color:#fff;border:2px solid #c9a34a;box-shadow:0 5px 16px rgba(15,65,43,.2)}
 @media(max-width:560px){.auction-arena-main-tabs{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.auction-arena-main-tabs button{min-height:56px;font-size:12px;padding:10px 7px}.auction-arena-main-tabs .auction-dashboard-tab{grid-column:1/-1;min-height:70px;font-size:15px}}
 @media(max-width:360px){.auction-arena-main-tabs{grid-template-columns:1fr}.auction-arena-main-tabs .auction-dashboard-tab{grid-column:auto}}
+
+#auctionLiveDashboard{padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important}
+#auctionLiveDashboard>.head{display:none}
+#auctionLiveDashboard #auctionList{display:block!important;padding:0!important;margin:0!important;background:transparent!important}
+.aos-live-dashboard{color:#fff;padding:clamp(12px,2vw,24px);border:1px solid #6c37e8;border-radius:22px;background:radial-gradient(ellipse at 48% 0%,#35107c 0%,#170d43 44%,#090d2c 100%);box-shadow:0 18px 48px #16004b45;overflow:hidden}
+.aos-live-dashboard-title{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:4px 4px 18px;border-bottom:1px solid #ffffff20;margin-bottom:16px}
+.aos-live-dashboard-title small{color:#e4c85c;font-weight:900;letter-spacing:2px;font-size:10px}
+.aos-live-dashboard-title h2{font-size:clamp(23px,3vw,38px);margin:3px 0;color:#fff}
+.aos-live-dashboard-title p{margin:0;color:#c8b8ef;font-size:12px}
+.aos-live-now{display:flex;align-items:center;gap:9px;padding:11px 17px;border:1px solid #16d79b88;border-radius:30px;background:#063d3a;color:#65ffd0;font-size:12px;font-weight:900;white-space:nowrap}
+.aos-live-now i{width:10px;height:10px;border-radius:50%;background:#ff315b;box-shadow:0 0 14px #ff315b}
+.aos-live-layout{display:grid;grid-template-columns:minmax(0,1.85fr) minmax(270px,.78fr);gap:14px}
+.aos-live-main,.aos-live-right{min-width:0}.aos-live-right{display:grid;align-content:start;gap:12px}
+.aos-live-hero{overflow:hidden;border:1px solid #773bff;border-radius:17px;background:radial-gradient(ellipse at 40% 0%,#4616a9,#180b50 65%,#100b39);box-shadow:0 12px 35px #0005}
+.aos-live-hero-top{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:13px 17px;border-bottom:1px solid #ffffff20;font-size:12px}
+.aos-live-pill{padding:6px 11px;border:1px solid #a64cff;border-radius:20px;color:#e8d5ff;background:#4c12a955;font-size:10px;font-weight:900}
+.aos-live-player{display:grid;grid-template-columns:minmax(125px,220px) minmax(0,1fr) minmax(130px,190px);align-items:center;gap:clamp(12px,2vw,24px);padding:18px}
+.aos-live-photo{display:block;width:100%;aspect-ratio:4/4.5;object-fit:cover;border:3px solid #ffd45c;border-radius:15px;box-shadow:0 0 20px #a44cff88;background:#24115d}
+.aos-live-placeholder{display:grid;place-items:center;color:#fff;font-size:54px}
+.aos-live-label{font-size:12px;font-weight:900;letter-spacing:1.5px;color:#e6d8ff;text-align:center}
+.aos-live-amount{font-size:clamp(25px,3.2vw,48px);line-height:1.18;font-weight:1000;text-align:center;color:#ffdf43;text-shadow:0 0 18px #ffae2c55;overflow-wrap:anywhere;margin:8px 0}
+.aos-live-leading{text-align:center;color:#fff;font-size:14px;font-weight:800;display:flex;justify-content:center;align-items:center;gap:8px}.aos-live-leading img{width:34px;height:34px;object-fit:contain}
+.aos-live-bid-controls{display:flex;flex-wrap:wrap;justify-content:center;gap:7px;margin-top:13px}
+.aos-live-bid-controls select{min-width:0;max-width:100%;padding:9px;border-radius:9px;background:#fff;color:#24134b;border:1px solid #b88aff}
+.aos-live-bid-controls .btn{background:linear-gradient(110deg,#8c24ff,#4b0ac9);border:1px solid #c99bff;color:#fff}
+.aos-live-call-box{align-self:stretch;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;gap:13px;border:1px solid #a13dff;border-radius:13px;background:linear-gradient(160deg,#310d7c,#160536);box-shadow:inset 0 0 28px #a52aff30;padding:14px 8px}
+.aos-live-call-box b{font-size:13px;color:#fff}.aos-live-call-box strong{font-size:clamp(22px,2.5vw,34px);color:#ffdc55;text-shadow:0 0 15px #ffb12b}.aos-live-call-box small{font-size:10px;color:#cbb9ee}
+.aos-live-player-name{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:13px 18px;border-top:1px solid #8d53ff;border-bottom:1px solid #8d53ff;background:linear-gradient(90deg,#321078,#170c48 65%,#321078)}
+.aos-live-player-name h2{font-size:clamp(21px,2.5vw,34px);margin:0;color:#fff}.aos-live-player-name p{font-size:11px;margin:4px 0 0;color:#d5c6f7}
+.aos-live-player-name>div:last-child{text-align:right;white-space:nowrap}.aos-live-player-name small,.aos-live-player-name b{display:block}.aos-live-player-name small{font-size:10px;color:#d7c7ff}.aos-live-player-name b{font-size:16px;color:#ffe16a;margin-top:4px}
+.aos-live-hero .auction-call-track{padding:16px 18px 19px}.aos-live-hero .auction-call-step{color:#d0c3ef;font-size:11px}.aos-live-hero .auction-call-step span{width:36px;height:36px;border:2px solid #7965c9;background:#26145e;color:#fff}
+.aos-live-hero .auction-call-step.done span{background:#13c96c;border-color:#7bffb1;box-shadow:0 0 15px #12e477}.aos-live-hero .auction-call-step.active span{background:#ffcf3f;border-color:#fff2a5;color:#28134b;box-shadow:0 0 18px #ffcf3f}
+.aos-live-wait{padding:50px 18px;text-align:center;color:#e6d9ff}
+.aos-live-card{min-width:0;padding:14px;border:1px solid #5836a7;border-radius:15px;background:linear-gradient(155deg,#19154b,#111536);box-shadow:0 9px 24px #0004}
+.aos-live-card h3{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 12px;color:#fff;font-size:14px}.aos-live-card h3 span{font-size:9px;color:#d2bfff;font-weight:700}
+.aos-live-card .empty{background:#21184e;color:#d7cafa;border-color:#49327d}
+.aos-live-card .auction-team-bid-row{border-bottom:1px solid #ffffff16;color:#fff;padding:10px 5px}.aos-live-card .auction-team-bid-row.leading{background:#075b42;border-radius:9px}
+.aos-live-card .auction-team-bid-row .grow b{color:#fff;font-size:11px}.aos-live-card .auction-team-bid-row .grow small{color:#c9bce9;font-size:9px}.aos-live-card .auction-team-bid-row strong{color:#ffe16a;font-size:11px}.aos-live-card .auction-team-bid-row img{width:32px;height:32px}
+.aos-live-lower{display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:10px;margin-top:12px;align-items:start}
+.aos-squad-preview{display:flex;align-items:flex-start;gap:9px;padding:9px 0;border-bottom:1px solid #ffffff18}.aos-squad-preview:last-child{border:0}
+.aos-squad-preview>img,.aos-team-placeholder{width:42px;height:42px;object-fit:contain;border-radius:8px;background:#29205d;display:grid;place-items:center;flex:none}
+.aos-squad-preview .grow{min-width:0}.aos-squad-preview .grow b{font-size:11px;color:#fff;display:block}.aos-squad-preview .grow small{font-size:9px;color:#c8bce9;display:block;margin-top:3px}.aos-squad-preview>strong{font-size:11px;color:#ffdc58}
+.aos-mini-players{display:flex;align-items:center;margin-top:7px}.aos-mini-players img,.aos-mini-players span{width:25px;height:29px;object-fit:cover;border:1px solid #b18aff;border-radius:5px;margin-right:3px;background:#30205e;display:grid;place-items:center;font-size:12px}.aos-mini-players i{font-size:10px;color:#ffdb64;font-style:normal}
+.aos-player-details{display:flex;gap:10px;align-items:flex-start}.aos-player-details>img,.aos-player-details>span{width:88px;aspect-ratio:3/4;object-fit:cover;border:2px solid #a66bff;border-radius:9px;background:#2b1b60;display:grid;place-items:center;flex:none}
+.aos-player-details>div{min-width:0;display:grid;gap:5px}.aos-player-details b{color:#fff;font-size:12px}.aos-player-details small{font-size:9px;color:#d0c5ed;overflow-wrap:anywhere}
+.aos-history-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 7px;border-bottom:1px solid #ffffff17;padding:8px 0;color:#fff;font-size:10px}.aos-history-row span{min-width:0}.aos-history-row b,.aos-history-row small{display:block}.aos-history-row b{color:#ffe16a;font-size:10px}.aos-history-row small{color:#d0c3ed;font-size:9px;margin-top:3px}.aos-history-row strong{color:#ffe16a;font-size:10px;white-space:nowrap}.aos-history-row time{grid-column:2;color:#c2b5e5;text-align:right;font-size:8px}
+.aos-voice-heading{display:flex;justify-content:space-between;align-items:center;gap:7px}.aos-voice-heading h3{margin-bottom:0}.aos-live-voice-card p{font-size:10px;color:#c7b8e8;margin:8px 0}
+.aos-voice-controls{display:flex;flex-wrap:wrap;gap:7px;margin:9px 0}.aos-voice-controls .btn{font-size:10px;padding:8px 10px}
+.aos-live-dashboard #auctionVoiceParticipants{display:grid;gap:6px}.aos-live-dashboard #auctionVoiceParticipants .item{background:#211a55;border-color:#51408a;color:#fff;padding:7px}.aos-live-dashboard #auctionVoiceParticipants .item b,.aos-live-dashboard #auctionVoiceParticipants .item small{color:#fff}
+.aos-snapshot{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.aos-snapshot>div{padding:9px 5px;text-align:center;border-radius:8px;background:#241b5b}.aos-snapshot small,.aos-snapshot b{display:block}.aos-snapshot small{font-size:8px;color:#c7b7e9}.aos-snapshot b{font-size:19px;color:#ffdc58;margin-top:4px}
+.aos-snapshot-call{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding:9px;border-radius:8px;background:#26175e}.aos-snapshot-call small{font-size:9px;color:#c9b8ed}.aos-snapshot-call b{font-size:12px;color:#ffe16a}
+@media(max-width:1000px){.aos-live-layout{grid-template-columns:minmax(0,1fr)}.aos-live-right{grid-template-columns:repeat(2,minmax(0,1fr))}.aos-live-lower{grid-template-columns:repeat(2,minmax(0,1fr))}.aos-live-lower>section:first-child{grid-column:1/-1}}
+@media(max-width:650px){.aos-live-dashboard{padding:10px}.aos-live-player{grid-template-columns:110px minmax(0,1fr);gap:10px;padding:12px}.aos-live-call-box{grid-column:1/-1;min-height:90px;gap:5px}.aos-live-amount{font-size:25px}.aos-live-leading{font-size:11px}.aos-live-player-name{padding:10px;align-items:flex-start}.aos-live-player-name h2{font-size:20px}.aos-live-player-name b{font-size:12px}.aos-live-right,.aos-live-lower{grid-template-columns:1fr}.aos-live-lower>section:first-child{grid-column:auto}.aos-live-player-name p{font-size:9px}}
+
 </style></head>
 <body>
 <header><button id="sidebarMenuBtn" class="sidebar-menu-btn" aria-label="Open navigation menu" aria-expanded="false" onclick="toggleAOSSidebar()">☰ <span>Menu</span></button><div class="brand"><img id="siteLogo" class="brand-logo hidden" alt="AOS Logo"><div id="siteLogoFallback" class="crest">AOS</div><div>ANCESTOR OF SYLHET<small>OFFICIAL TOURNAMENT CENTER</small></div></div><nav class="top-nav" aria-label="Main navigation"><button class="top-nav-link active" data-id="home" onclick="go('home')">Home</button><button class="top-nav-link" data-id="tournaments" onclick="go('tournaments')">Tournaments</button><button class="top-nav-link" data-id="playersDirectory" onclick="go('playersDirectory')">Players</button><button class="top-nav-link" data-id="teamDirectory" onclick="go('teamDirectory')">Teams</button><button class="top-nav-link" data-id="tournamentCards" onclick="go('tournamentCards')">Card Maker</button><button class="top-nav-link" data-id="auction" onclick="go('auction')">Auction</button><button class="top-nav-link" data-id="fixtures" onclick="go('fixtures')">Matches</button><button class="top-nav-link" data-id="standings" onclick="go('standings')">Rankings</button><button class="top-nav-link" data-id="register" onclick="go('register')">Register</button></nav><div class="header-account"><span id="userLabel" class="muted">Guest</span><button class="btn light" id="authBtn" onclick="openAuth()">Login</button></div></header>
@@ -698,5 +752,5 @@ header{gap:18px;height:78px;padding-left:max(18px,calc((100% - 1320px)/2));paddi
   <button data-id="playersDirectory" onclick="go('playersDirectory')">👥 Players</button>
 </nav>
 <div id="authModal" class="hidden" style="position:fixed;inset:0;background:#0b1730aa;z-index:20;display:grid;place-items:center;padding:16px"><div class="card" style="width:min(440px,100%)"><div class="row"><h2 id="authTitle">Login</h2><button class="btn light" onclick="closeAuth()">✕</button></div><div class="field"><label>Email</label><input id="authEmail" type="email"></div><div class="field" style="margin-top:10px"><label>Password</label><input id="authPass" type="password"></div><div class="row" style="margin-top:14px"><button class="btn" onclick="doAuth('login')">Login</button><button class="btn light" onclick="doAuth('signup')">Create Account</button></div><p class="muted">নতুন Account তৈরি করলে Email verification প্রয়োজন হতে পারে।</p></div></div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="config.js"></script><script src="app.js?v=20261119-34"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="config.js"></script><script src="app.js?v=20261119-35"></script>
 </body></html>
