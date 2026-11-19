@@ -175,12 +175,39 @@ th{background:#edf4eb;color:#4e6651}
 .dashboard-stats .card{border-color:#e6e1d5}
 @media(prefers-reduced-motion:no-preference){.btn,.item,.home-shortcuts button{transition:transform .18s,box-shadow .18s,border-color .18s}}
 
+
+/* CLEAN MODERN HOMEPAGE */
+.hero{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(230px,.75fr);align-items:center;gap:30px;min-height:0;padding:clamp(26px,4vw,48px);background:#fff;color:var(--ink);border:1px solid #e8dfd2;border-left:6px solid #187747;border-radius:23px;box-shadow:0 12px 34px rgba(35,76,48,.08)}
+.hero:before{width:260px;height:260px;right:-100px;top:-155px;border-color:#d5a63835;box-shadow:0 0 0 34px #d5a6380a,0 0 0 68px #18774708}
+.hero:after{display:none}
+.hero .eyebrow{color:#98701e;letter-spacing:2px}
+.hero h1{color:#174b32;font-size:clamp(30px,4vw,48px);line-height:1.12;letter-spacing:-1.5px;margin:13px 0}
+.hero h1 span{color:#795238}
+.hero p{color:#756b60;font-size:14px;line-height:1.8;margin:0 0 20px;max-width:590px}
+.hero-actions{display:flex;gap:10px;flex-wrap:wrap}
+.hero-actions .btn{min-height:43px}
+.hero-side{min-height:190px;border-radius:18px;background:linear-gradient(145deg,#174b32,#236641);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:22px;text-align:center;position:relative;overflow:hidden}
+.hero-side:before,.hero-side:after{content:"";position:absolute;width:170px;height:170px;border:1px solid #ffffff20;border-radius:50%}
+.hero-side:before{top:-105px;right:-65px;box-shadow:0 0 0 25px #ffffff08}
+.hero-side:after{bottom:-125px;left:-60px}
+.hero-mark{width:68px;height:68px;border-radius:20px;background:linear-gradient(145deg,#f0d47e,#c99a32);color:#174b32;display:grid;place-items:center;font-size:23px;font-weight:950;letter-spacing:-1px;border:3px solid #fff3cf;box-shadow:0 8px 22px #102f1e55;margin-bottom:12px}
+.hero-side-title{font-size:12px;font-weight:900;letter-spacing:1.5px}
+.hero-side-sub{font-size:9px;color:#d9e7dc;letter-spacing:1.4px;margin-top:5px}
+.hero-tags{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:15px}
+.hero-tags span{font-size:8px;letter-spacing:.8px;font-weight:800;padding:5px 8px;border:1px solid #ffffff35;border-radius:20px;color:#f4e8c6}
+.home-dashboard{margin-top:19px}
+.home-stats{gap:12px}
+.home-stat{border-radius:15px;padding:15px 17px}
+.home-shortcuts button{border-radius:14px}
+.home-panel{border-radius:16px}
+@media(max-width:700px){.hero{grid-template-columns:1fr;gap:20px;padding:24px 20px}.hero-side{min-height:155px}.hero h1{font-size:34px}.hero p{font-size:13px}.hero-actions{gap:8px}.hero-actions .btn{font-size:11px;padding:10px 12px}}
+
 </style></head>
 <body>
 <header><div class="brand"><img id="siteLogo" class="brand-logo hidden" alt="AOS Logo"><div id="siteLogoFallback" class="crest">AOS</div><div>ANCESTOR OF SYLHET<small>OFFICIAL TOURNAMENT CENTER</small></div></div><div class="row"><span id="userLabel" class="muted">Guest</span><button class="btn light" id="authBtn" onclick="openAuth()">Login</button></div></header>
 <main class="wrap">
 <div id="globalMsg"></div>
-<section id="home" class="page"><div class="hero"><div class="eyebrow">ANCESTOR OF SYLHET PRESENTS</div><h1>HUNT THE GOAL<br>WIN THE GLORY.</h1><p>AOS-এর সব Tournament, Auction, Fixture, Result ও Ranking এক জায়গায়।</p><button class="btn" onclick="go('tournaments')">টুর্নামেন্ট দেখুন</button> <button class="btn light" onclick="go('register')">প্লেয়ার রেজিস্ট্রেশন</button><div class="stats"><div class="stat"><b id="nT">—</b><span>Tournaments</span></div><div class="stat"><b id="nP">—</b><span>Players</span></div><div class="stat"><b id="nM">—</b><span>Matches</span></div></div></div><section class="home-dashboard">
+<section id="home" class="page"><div class="hero"><div class="hero-copy"><div class="eyebrow">ANCESTOR OF SYLHET · OFFICIAL PLATFORM</div><h1>Everything AOS.<br><span>One Tournament Center.</span></h1><p>AOS-এর Tournament, Player, Auction, Fixtures, Results ও Rankings—সবকিছু এখন এক জায়গায়, সহজে ও সুন্দরভাবে।</p><div class="hero-actions"><button class="btn green" onclick="go('tournaments')">Explore Tournaments <span>→</span></button><button class="btn light" onclick="go('register')">Player Registration</button></div></div><div class="hero-side"><div class="hero-mark">AOS</div><div class="hero-side-title">ANCESTOR OF SYLHET</div><div class="hero-side-sub">PLAY TOGETHER. GROW TOGETHER.</div><div class="hero-tags"><span>TOURNAMENTS</span><span>PLAYERS</span><span>COMMUNITY</span></div></div></div><section class="home-dashboard">
 <div class="home-stats">
 <div class="home-stat"><span>🏆</span><div><b id="nT">0</b><small>Total Tournaments</small></div></div>
 <div class="home-stat"><span>👥</span><div><b id="nP">0</b><small>Registered Players</small></div></div>
