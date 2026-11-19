@@ -202,6 +202,17 @@ th{background:#edf4eb;color:#4e6651}
 .home-panel{border-radius:16px}
 @media(max-width:700px){.hero{grid-template-columns:1fr;gap:20px;padding:24px 20px}.hero-side{min-height:155px}.hero h1{font-size:34px}.hero p{font-size:13px}.hero-actions{gap:8px}.hero-actions .btn{font-size:11px;padding:10px 12px}}
 
+
+/* AOS HOMEPAGE ICON SYSTEM + PLAYER PHOTO THUMBNAILS */
+.home-icon{width:46px;height:46px;display:grid;place-items:center;flex:0 0 46px;border-radius:15px;background:#f6f0df;border:1px solid #eadcb8;color:#795b21}
+.home-icon svg,.home-shortcut-icon svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.home-icon-green{background:#eaf4e9;border-color:#d6e8d4;color:#236641}.home-icon-brown{background:#f3ebe4;border-color:#e8d9ca;color:#795238}
+.home-stat>span.home-icon{font-size:initial}
+.home-shortcuts button .home-shortcut-icon{width:43px;height:43px;display:grid;place-items:center;border-radius:13px;background:#edf4eb;color:#236641;margin-bottom:3px}
+.home-shortcuts button:nth-child(2) .home-shortcut-icon{background:#f3ebe4;color:#795238}.home-shortcuts button:nth-child(3) .home-shortcut-icon{background:#edf3fa;color:#42658c}.home-shortcuts button:nth-child(4) .home-shortcut-icon{background:#f8f1df;color:#98701e}.home-shortcuts button:nth-child(5) .home-shortcut-icon{background:#f2ece7;color:#795238}.home-shortcuts button:nth-child(6) .home-shortcut-icon{background:#eaf4e9;color:#236641}
+.home-shortcuts button .home-shortcut-icon svg{width:22px;height:22px}
+.home-player-item{min-height:68px}.home-player-avatar{width:46px;height:46px;flex:0 0 46px;border-radius:14px;overflow:hidden;background:#edf4eb;color:#236641;display:grid;place-items:center;font-size:18px;font-weight:900;border:1px solid #dce8d9}.home-player-avatar img{width:100%;height:100%;object-fit:cover;display:block}.home-player-avatar span{width:100%;height:100%;place-items:center}
+@media(max-width:600px){.home-icon{width:36px;height:36px;flex-basis:36px;border-radius:11px}.home-icon svg{width:19px;height:19px}.home-player-avatar{width:42px;height:42px;flex-basis:42px;border-radius:12px}}
 </style></head>
 <body>
 <header><div class="brand"><img id="siteLogo" class="brand-logo hidden" alt="AOS Logo"><div id="siteLogoFallback" class="crest">AOS</div><div>ANCESTOR OF SYLHET<small>OFFICIAL TOURNAMENT CENTER</small></div></div><div class="row"><span id="userLabel" class="muted">Guest</span><button class="btn light" id="authBtn" onclick="openAuth()">Login</button></div></header>
@@ -209,17 +220,17 @@ th{background:#edf4eb;color:#4e6651}
 <div id="globalMsg"></div>
 <section id="home" class="page"><div class="hero"><div class="hero-copy"><div class="eyebrow">ANCESTOR OF SYLHET · OFFICIAL PLATFORM</div><h1>Everything AOS.<br><span>One Tournament Center.</span></h1><p>AOS-এর Tournament, Player, Auction, Fixtures, Results ও Rankings—সবকিছু এখন এক জায়গায়, সহজে ও সুন্দরভাবে।</p><div class="hero-actions"><button class="btn green" onclick="go('tournaments')">Explore Tournaments <span>→</span></button><button class="btn light" onclick="go('register')">Player Registration</button></div></div><div class="hero-side"><img id="heroSiteLogo" class="hero-logo hidden" alt="Ancestor of Sylhet Logo"><div id="heroLogoFallback" class="hero-mark">AOS</div><div class="hero-side-title">ANCESTOR OF SYLHET</div><div class="hero-side-sub">PLAY TOGETHER. GROW TOGETHER.</div><div class="hero-tags"><span>TOURNAMENTS</span><span>PLAYERS</span><span>COMMUNITY</span></div></div></div><section class="home-dashboard">
 <div class="home-stats">
-<div class="home-stat"><span>🏆</span><div><b id="nT">0</b><small>Total Tournaments</small></div></div>
-<div class="home-stat"><span>👥</span><div><b id="nP">0</b><small>Registered Players</small></div></div>
-<div class="home-stat"><span>⚽</span><div><b id="nM">0</b><small>Total Matches</small></div></div>
+<div class="home-stat"><span class="home-icon home-icon-gold"><svg viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4ZM7 6H4v2a4 4 0 0 0 4 4M17 6h3v2a4 4 0 0 1-4 4"/></svg></span><div><b id="nT">0</b><small>Total Tournaments</small></div></div>
+<div class="home-stat"><span class="home-icon home-icon-green"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><div><b id="nP">0</b><small>Registered Players</small></div></div>
+<div class="home-stat"><span class="home-icon home-icon-brown"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m12 7 3 2-1 4h-4L9 9l3-2ZM3.5 9h5.5M15 9h5.5M10 13l-3 6M14 13l3 6"/></svg></span><div><b id="nM">0</b><small>Total Matches</small></div></div>
 </div>
 <div class="home-shortcuts">
-<button onclick="go('tournaments')"><span>🏆</span><b>Tournaments</b><small>Explore events</small></button>
-<button onclick="go('playersDirectory')"><span>👥</span><b>Players</b><small>Player directory</small></button>
-<button onclick="go('fixtures')"><span>⚽</span><b>Matches</b><small>Fixtures & results</small></button>
-<button onclick="go('standings')"><span>📊</span><b>Points Table</b><small>Team rankings</small></button>
-<button onclick="go('auction')"><span>🔨</span><b>Auction</b><small>Live bidding</small></button>
-<button onclick="go('awards')"><span>🏅</span><b>Awards</b><small>Player performance</small></button>
+<button onclick="go('tournaments')"><span class="home-shortcut-icon"><svg viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4ZM7 6H4v2a4 4 0 0 0 4 4M17 6h3v2a4 4 0 0 1-4 4"/></svg></span><b>Tournaments</b><small>Explore events</small></button>
+<button onclick="go('playersDirectory')"><span class="home-shortcut-icon"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><b>Players</b><small>Player directory</small></button>
+<button onclick="go('fixtures')"><span class="home-shortcut-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m12 7 3 2-1 4h-4L9 9l3-2ZM3.5 9h5.5M15 9h5.5M10 13l-3 6M14 13l3 6"/></svg></span><b>Matches</b><small>Fixtures & results</small></button>
+<button onclick="go('standings')"><span class="home-shortcut-icon"><svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h17m-14-4 4-4 3 2 6-7"/></svg></span><b>Points Table</b><small>Team rankings</small></button>
+<button onclick="go('auction')"><span class="home-shortcut-icon"><svg viewBox="0 0 24 24"><path d="m14 6 4 4M3 21l9-9M13 4l3-3 6 6-3 3M8 9l7 7"/></svg></span><b>Auction</b><small>Live bidding</small></button>
+<button onclick="go('awards')"><span class="home-shortcut-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="5"/><path d="m8.5 12-2 9 5.5-3 5.5 3-2-9"/></svg></span><b>Awards</b><small>Player performance</small></button>
 </div>
 <div class="home-columns">
 <div class="home-panel"><div class="home-panel-head"><div><h2>Latest Matches</h2><small>Recent fixtures and results</small></div><button class="btn light" onclick="go('fixtures')">View All</button></div><div id="homeMatches" class="list"></div></div>
