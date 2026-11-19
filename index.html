@@ -258,9 +258,62 @@ header{gap:18px;height:78px;padding-left:max(18px,calc((100% - 1320px)/2));paddi
 .team-directory-player .team-player-fallback{display:grid;place-items:center;background:#edf4eb;color:#236641;font-weight:900}
 .team-directory-player small{display:block;overflow-wrap:anywhere;line-height:1.5}
 @media(max-width:600px){.team-directory-grid{grid-template-columns:1fr}.team-directory-card{padding:13px}}
+
+/* AOS LEFT SIDEBAR NAVIGATION */
+.sidebar-menu-btn{display:none;border:1px solid #d5a63866;background:#ffffff12;color:#fff;border-radius:11px;padding:9px 11px;font-size:12px;font-weight:850;align-items:center;gap:7px}
+.aos-sidebar{position:fixed;z-index:14;left:0;top:78px;bottom:0;width:258px;padding:19px 13px 22px;background:linear-gradient(180deg,#174b32 0%,#123b28 100%);color:#fff;overflow-y:auto;box-shadow:8px 0 30px #193b281c;display:flex;flex-direction:column;gap:5px}
+.sidebar-heading{display:flex;justify-content:space-between;align-items:center;padding:2px 10px 15px;color:#f1d27e;font-size:11px;font-weight:950;letter-spacing:2px}
+.sidebar-heading button{border:0;background:#ffffff18;color:#fff;border-radius:8px;width:28px;height:28px;font-size:20px;line-height:1;display:none}
+.sidebar-group-label{padding:15px 11px 5px;color:#d9c58c;font-size:9px;font-weight:900;letter-spacing:1.5px}
+.sidebar-link{width:100%;display:flex;align-items:center;gap:12px;text-align:left;padding:10px 12px;border:1px solid transparent;border-radius:11px;background:transparent;color:#e7f0e8;font-size:11px;font-weight:750;transition:.16s}
+.sidebar-link>span{width:23px;flex:0 0 23px;text-align:center;font-size:16px}
+.sidebar-link:hover{background:#ffffff12;color:#fff}
+.sidebar-link.active{background:linear-gradient(100deg,#e8c86e,#c99a32);color:#2f3b25;box-shadow:0 5px 14px #0b2d1e55;font-weight:900}
+.sidebar-footer{margin-top:auto;padding:18px 10px 4px;border-top:1px solid #ffffff20;color:#f0d27c;font-size:9px;font-weight:900;letter-spacing:1.1px;line-height:1.8}
+.sidebar-footer small{color:#c7d9c9;font-size:8px;letter-spacing:.7px}
+.sidebar-shade{display:none}
+@media(min-width:761px){
+ header{padding-left:24px;padding-right:24px}
+ .top-nav{display:none}
+ .wrap{margin-left:278px;margin-right:22px;max-width:none;width:auto;padding-left:22px;padding-right:22px}
+}
+@media(max-width:760px){
+ .sidebar-menu-btn{display:flex;order:0}
+ header .brand{order:1}
+ header .header-account{order:2}
+ .aos-sidebar{top:0;bottom:0;left:-290px;width:278px;z-index:31;padding-top:22px;transition:left .22s ease;box-shadow:12px 0 35px #071a0e55}
+ .aos-sidebar.open{left:0}
+ .sidebar-heading button{display:block}
+ .sidebar-shade{position:fixed;inset:0;background:#071a0eb0;z-index:30;display:block;opacity:0;visibility:hidden;transition:opacity .2s}
+ .sidebar-shade.show{opacity:1;visibility:visible}
+ header{z-index:15}
+}
+@media(max-width:420px){.sidebar-menu-btn{padding:8px 9px;font-size:11px}.sidebar-menu-btn span{display:none}}
 </style></head>
 <body>
-<header><div class="brand"><img id="siteLogo" class="brand-logo hidden" alt="AOS Logo"><div id="siteLogoFallback" class="crest">AOS</div><div>ANCESTOR OF SYLHET<small>OFFICIAL TOURNAMENT CENTER</small></div></div><nav class="top-nav" aria-label="Main navigation"><button class="top-nav-link active" data-id="home" onclick="go('home')">Home</button><button class="top-nav-link" data-id="tournaments" onclick="go('tournaments')">Tournaments</button><button class="top-nav-link" data-id="playersDirectory" onclick="go('playersDirectory')">Players</button><button class="top-nav-link" data-id="teamDirectory" onclick="go('teamDirectory')">Teams</button><button class="top-nav-link" data-id="tournamentCards" onclick="go('tournamentCards')">Card Maker</button><button class="top-nav-link" data-id="auction" onclick="go('auction')">Auction</button><button class="top-nav-link" data-id="fixtures" onclick="go('fixtures')">Matches</button><button class="top-nav-link" data-id="standings" onclick="go('standings')">Rankings</button><button class="top-nav-link" data-id="more" onclick="go('more')">More</button></nav><div class="header-account"><span id="userLabel" class="muted">Guest</span><button class="btn light" id="authBtn" onclick="openAuth()">Login</button></div></header>
+<header><button id="sidebarMenuBtn" class="sidebar-menu-btn" aria-label="Open navigation menu" aria-expanded="false" onclick="toggleAOSSidebar()">☰ <span>Menu</span></button><div class="brand"><img id="siteLogo" class="brand-logo hidden" alt="AOS Logo"><div id="siteLogoFallback" class="crest">AOS</div><div>ANCESTOR OF SYLHET<small>OFFICIAL TOURNAMENT CENTER</small></div></div><nav class="top-nav" aria-label="Main navigation"><button class="top-nav-link active" data-id="home" onclick="go('home')">Home</button><button class="top-nav-link" data-id="tournaments" onclick="go('tournaments')">Tournaments</button><button class="top-nav-link" data-id="playersDirectory" onclick="go('playersDirectory')">Players</button><button class="top-nav-link" data-id="teamDirectory" onclick="go('teamDirectory')">Teams</button><button class="top-nav-link" data-id="tournamentCards" onclick="go('tournamentCards')">Card Maker</button><button class="top-nav-link" data-id="auction" onclick="go('auction')">Auction</button><button class="top-nav-link" data-id="fixtures" onclick="go('fixtures')">Matches</button><button class="top-nav-link" data-id="standings" onclick="go('standings')">Rankings</button><button class="top-nav-link" data-id="more" onclick="go('more')">More</button></nav><div class="header-account"><span id="userLabel" class="muted">Guest</span><button class="btn light" id="authBtn" onclick="openAuth()">Login</button></div></header>
+<div id="sidebarShade" class="sidebar-shade" onclick="toggleAOSSidebar(false)"></div>
+<aside id="aosSidebar" class="aos-sidebar" aria-label="AOS website navigation">
+  <div class="sidebar-heading"><span> AOS MENU </span><button type="button" onclick="toggleAOSSidebar(false)" aria-label="Close menu">×</button></div>
+  <div class="sidebar-group-label">MAIN</div>
+  <button class="sidebar-link active" data-id="home" onclick="go('home')"><span>⌂</span> Home</button>
+  <button class="sidebar-link" data-id="tournaments" onclick="go('tournaments')"><span>🏆</span> Tournaments</button>
+  <button class="sidebar-link" data-id="playersDirectory" onclick="go('playersDirectory')"><span>👥</span> Players Directory</button>
+  <button class="sidebar-link" data-id="teamDirectory" onclick="go('teamDirectory')"><span>⚽</span> Teams & Squads</button>
+  <div class="sidebar-group-label">TOURNAMENT CENTER</div>
+  <button class="sidebar-link" data-id="tournamentCards" onclick="go('tournamentCards')"><span>🎟</span> Registration Card Maker</button>
+  <button class="sidebar-link" data-id="auction" onclick="go('auction')"><span>⚒</span> Auction Arena</button>
+  <button class="sidebar-link" data-id="fixtures" onclick="go('fixtures')"><span>📅</span> Fixtures & Results</button>
+  <button class="sidebar-link" data-id="standings" onclick="go('standings')"><span>▤</span> Points Table</button>
+  <button class="sidebar-link" data-id="bracket" onclick="go('bracket')"><span>♜</span> Knockout Bracket</button>
+  <button class="sidebar-link" data-id="champions" onclick="go('champions')"><span>🥇</span> Champions Hall</button>
+  <div class="sidebar-group-label">COMMUNITY</div>
+  <button class="sidebar-link" data-id="awards" onclick="go('awards')"><span>🏅</span> Awards & Statistics</button>
+  <button class="sidebar-link" data-id="management" onclick="go('management')"><span>🛡</span> Admin & Management</button>
+  <button class="sidebar-link" data-id="profile" onclick="go('profile')"><span>👤</span> My Dashboard</button>
+  <button class="sidebar-link" data-id="admin" onclick="go('admin')"><span>⚙</span> Admin Panel</button>
+  <div class="sidebar-footer">ANCESTOR OF SYLHET<br><small>PLAY TOGETHER. GROW TOGETHER.</small></div>
+</aside>
 <main class="wrap">
 <div id="globalMsg"></div>
 <section id="home" class="page"><div class="hero"><div class="hero-copy"><div class="eyebrow">BANGLADESH eFOOTBALL COMMUNITY · AOS</div><h1>One Community.<br><span>Every AOS Moment.</span></h1><p>AOS-এর Tournament, Player Registration, Auction, Fixtures, Results ও Player Achievements—সবকিছু এক জায়গায়। খেলুন, প্রতিযোগিতা করুন, একসাথে এগিয়ে চলুন।</p><div class="hero-actions"><button class="btn green" onclick="go('tournaments')">Explore Tournaments <span>→</span></button><button class="btn light" onclick="go('register')">Player Registration</button></div></div><div class="hero-side"><img id="heroSiteLogo" class="hero-logo hidden" alt="Ancestor of Sylhet Logo"><div id="heroLogoFallback" class="hero-mark">AOS</div><div class="hero-side-title">ANCESTOR OF SYLHET</div><div class="hero-side-sub">PLAY TOGETHER. GROW TOGETHER.</div><div class="hero-tags"><span>TOURNAMENTS</span><span>PLAYERS</span><span>COMMUNITY</span></div></div></div><section class="home-dashboard">
@@ -557,5 +610,5 @@ header{gap:18px;height:78px;padding-left:max(18px,calc((100% - 1320px)/2));paddi
   <button data-id="more" onclick="go('more')">••• More</button>
 </nav>
 <div id="authModal" class="hidden" style="position:fixed;inset:0;background:#0b1730aa;z-index:20;display:grid;place-items:center;padding:16px"><div class="card" style="width:min(440px,100%)"><div class="row"><h2 id="authTitle">Login</h2><button class="btn light" onclick="closeAuth()">✕</button></div><div class="field"><label>Email</label><input id="authEmail" type="email"></div><div class="field" style="margin-top:10px"><label>Password</label><input id="authPass" type="password"></div><div class="row" style="margin-top:14px"><button class="btn" onclick="doAuth('login')">Login</button><button class="btn light" onclick="doAuth('signup')">Create Account</button></div><p class="muted">নতুন Account তৈরি করলে Email verification প্রয়োজন হতে পারে।</p></div></div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="config.js"></script><script src="app.js?v=20261119-9"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="config.js"></script><script src="app.js?v=20261119-10"></script>
 </body></html>
