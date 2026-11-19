@@ -2277,6 +2277,9 @@ const arenaPlayers = auctionTournamentId
       String(a.tournament_id) === String(auctionTournamentId)
     )
   : [];
+const activeLotId=auctionRoom?.current_player_id||"";
+const roomLive=auctionRoom?.room_status==="live";
+const auctionStaff=["admin","moderator"].includes(String(role).toLowerCase());
 
 $("auctionList").innerHTML = !auctionTournamentId
   ? '<div class="empty">আগে Auction Tournament নির্বাচন করুন।</div>'
@@ -2287,6 +2290,8 @@ $("auctionList").innerHTML = !auctionTournamentId
     .sort((x,y)=>Number(y.amount)-Number(x.amount));
 
   const highestBid=bids[0]||null;
+  const isActiveLot=roomLive&&String(activeLotId)===String(a.id);
+  const canBidTeams=auctionTeams.filter(t=>{const cfg=auctionTeamSettings.find(x=>String(x.team_id)===String(t.id));return auctionStaff||String(cfg?.captain_id||t.captain_id||"")===String(me?.id||"")||String(cfg?.manager_id||"")===String(me?.id||"");});
 
   const bidHistory=bids.slice(0,5).map((b,i)=>`
     <div class="muted" style="font-size:12px;margin-top:5px">
@@ -2295,11 +2300,7 @@ $("auctionList").innerHTML = !auctionTournamentId
     </div>
   `).join("");
 
-  const teamOptions = auctionTeams.map(t => `
-  <option value="${esc(t.id)}">
-    ${esc(t.name)} · Budget ${Number(t.budget || 0).toLocaleString()}
-  </option>
-`).join("");
+  const teamOptions = canBidTeams.map(t => { const cfg=auctionTeamSettings.find(x=>String(x.team_id)===String(t.id))||{}; return '<option value="'+esc(t.id)+'">'+esc(t.name)+' · Budget '+Number(cfg.budget_remaining??t.budget??0).toLocaleString()+'</option>'; }).join("");
 
   return `
     <div class="item" style="display:block;margin-bottom:12px">
@@ -2308,7 +2309,7 @@ $("auctionList").innerHTML = !auctionTournamentId
         ${a.profile?.avatar_url?`<img src="${esc(a.profile.avatar_url)}" alt="Player Photo" style="width:68px;height:68px;object-fit:cover;border-radius:14px">`:'<div class="avatar" style="width:68px;height:68px;border-radius:14px">👤</div>'}
 
         <div class="grow">
-          <b>${esc(a.profile?.display_name||"Auction Player")}</b>
+          <b>${a.serial_no?"#"+a.serial_no+" · ":""}${esc(a.profile?.display_name||"Auction Player")}</b>
           <small style="display:block">Device: ${esc(a.profile?.device||"Not Added")}</small>
           <small style="display:block">User ID: ${esc(a.profile?.efootball_id||"N/A")}</small>
         </div>
@@ -2347,25 +2348,18 @@ $("auctionList").innerHTML = !auctionTournamentId
           <select
             id="team-${a.id}"
             style="flex:1;min-width:140px"
-            ${auctionTeams.length === 0 ? "disabled" : ""}
+            ${canBidTeams.length === 0 ? "disabled" : ""}
           >
             <option value="">
-              ${auctionTeams.length ? "Select Team" : "আগে Tournament নির্বাচন করুন"}
+              ${canBidTeams.length ? "Your Team" : "Captain/Manager Access নেই"}
             </option>
             ${teamOptions}
           </select>
 
-          <button class="btn"
-            onclick="placeBid('${a.id}',$('team-${a.id}').value)">
-            Bid
-          </button>
+          ${isActiveLot && canBidTeams.length ? `<button class="btn" onclick="placeBid('${a.id}',$('team-${a.id}').value)">Place Bid</button>` : `<small class="muted">Admin এই Player-কে Live করলে Bid শুরু হবে।</small>`}
 
-          ${["admin","moderator"].includes(role)?`
-            <button class="btn green"
-              onclick="buyPlayer('${a.id}',$('team-${a.id}').value)">
-              Sold
-            </button>
-          `:""}
+          ${["admin","moderator"].includes(role)&&isActiveLot&&Number(auctionRoom?.call_stage||0)>=4?`<button class="btn green" onclick="buyPlayer('${a.id}',$('team-${a.id}').value)">SOLD</button>`:""}
+          ${["admin","moderator"].includes(role)&&isActiveLot&&bids.length===0?`<button class="btn light" onclick="markAuctionUnsold('${a.id}')">Mark Unsold</button>`:""}
 
         </div>
 
