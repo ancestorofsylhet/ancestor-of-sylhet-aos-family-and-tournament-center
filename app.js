@@ -2293,7 +2293,7 @@ $("auctionList").innerHTML = !auctionTournamentId
 
   const highestBid=bids[0]||null;
   const isActiveLot=roomLive&&String(activeLotId)===String(a.id);
-  const canBidTeams=auctionTeams.filter(t=>{const cfg=auctionTeamSettings.find(x=>String(x.team_id)===String(t.id));return auctionStaff||!!cfg&&(String(cfg.captain_id||"")===String(me?.id||"")||String(cfg.manager_id||"")===String(me?.id||""));});
+  const canBidTeams=auctionTeams.filter(t=>{const cfg=auctionTeamSettings.find(x=>String(x.team_id)===String(t.id));return !!cfg&&(String(cfg.captain_id||"")===String(me?.id||"")||String(cfg.manager_id||"")===String(me?.id||""));});
 
   const bidHistory=bids.slice(0,5).map((b,i)=>`
     <div class="muted" style="font-size:12px;margin-top:5px">
