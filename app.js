@@ -31,7 +31,7 @@ const [t,p,tm,m,st,a,b,ch]=await Promise.all([
   db.from("teams").select("*"),
   db.from("matches").select("*,home:teams!matches_home_team_id_fkey(name),away:teams!matches_away_team_id_fkey(name)").order("round_no"),
   db.from("standings").select("*,team:teams(name)").order("points",{ascending:false}),
-  db.from("auction_players").select("*,profile:profiles(display_name,efootball_id,avatar_url),team:teams(id,name)").order("created_at",{ascending:false}),
+  db.from("auction_players").select("*,profile:profiles(display_name,efootball_id,device,avatar_url),team:teams(id,name)").order("created_at",{ascending:false}),
   db.from("auction_bids").select("*,team:teams(name)").order("created_at",{ascending:false}),
   db.from("champions").select("*").order("created_at",{ascending:false})
 ]);
@@ -1790,7 +1790,7 @@ function renderTournamentDetails(){
       return `<div class=\"item\" style=\"display:flex;align-items:center;gap:12px;margin-bottom:10px\">${photo?`<img src=\"${esc(photo)}\" alt=\"\" style=\"width:58px;height:58px;object-fit:cover;border-radius:50%\">`:`<div class=\"avatar\" style=\"width:58px;height:58px;display:grid;place-items:center\">👤</div>`}<div class=\"grow\"><b>${esc(profile.display_name||'Player')}</b><small style=\"display:block\">কেনা দাম: <b>${Number(x.sold_price||0).toLocaleString()} ৳</b></small><small style=\"display:block\">কিনেছে: <b>${esc(buyerTeam?.name||'Unknown Team')}</b></small></div></div>`;
     }).join('')||'<div class=\"empty\">এই Tournament-এ এখনো কোনো Player Sold হয়নি।</div>';
   }
-  if(tournamentDetailTab==='auction') content=ap.map(x=>`<div class="item"><b>${esc(x.profile?.display_name||'Player')}</b><small>${esc(x.status||'')} · Base Price: ${Number(x.base_price||0)}</small></div>`).join('')||'<div class="empty">এই Tournament-এর Auction Player পাওয়া যায়নি।</div>';
+  if(tournamentDetailTab==='auction') content=ap.map(x=>{const p=x.profile||players.find(z=>String(z.id)===String(x.profile_id))||{};return `<div class="item" style="display:flex;align-items:center;gap:12px">${p.avatar_url?`<img src="${esc(p.avatar_url)}" alt="Player Photo" style="width:68px;height:68px;object-fit:cover;border-radius:14px">`:'<div class="avatar" style="width:68px;height:68px;border-radius:14px">👤</div>'}<div class="grow"><b>${esc(p.display_name||'Player')}</b><small style="display:block">Device: ${esc(p.device||'Not Added')}</small><small style="display:block">User ID: ${esc(p.efootball_id||'Not Added')}</small><small style="display:block">${esc(x.status||'')} · Base Price: ${Number(x.base_price||0)}</small></div></div>`;}).join('')||'<div class="empty">এই Tournament-এর Auction Player পাওয়া যায়নি।</div>';
   if(tournamentDetailTab==='matches') content=tm.map(x=>`<div class="item"><b>${esc(x.home?.name||'TBD')} vs ${esc(x.away?.name||'TBD')}</b><small>Round ${x.round_no||'—'} · ${esc(x.status||'')}</small><b>${x.home_score??'—'} : ${x.away_score??'—'}</b></div>`).join('')||'<div class="empty">এই Tournament-এর Fixture তৈরি হয়নি।</div>';
   if(tournamentDetailTab==='table') content=st.map((x,i)=>`<div class="item"><b>${i+1}. ${esc(x.team?.name||'Team')}</b><small>P ${x.played??0} · W ${x.won??0} · D ${x.drawn??0} · L ${x.lost??0} · GD ${x.goal_difference??0} · Points ${x.points??0}</small></div>`).join('')||'<div class="empty">এই Tournament-এর Points Table পাওয়া যায়নি।</div>';
   if(tournamentDetailTab==='knockout') content=tm.filter(x=>String(x.stage||'').toLowerCase().includes('knockout')||String(x.stage||'').toLowerCase().includes('final')||String(x.stage||'').toLowerCase().includes('semi')).map(x=>`<div class="item"><b>${esc(x.home?.name||'TBD')} vs ${esc(x.away?.name||'TBD')}</b><small>${esc(x.stage||'Knockout')}</small><b>${x.home_score??'—'} : ${x.away_score??'—'}</b></div>`).join('')||'<div class="empty">Knockout fixture এখনো তৈরি হয়নি।</div>';
@@ -1804,7 +1804,7 @@ function renderPublicPlayers(){
   const term=($("playerSearch")?.value||"").trim().toLowerCase();
   const list=players.filter(p=>(p.display_name||"").toLowerCase().includes(term)||(p.efootball_id||"").toLowerCase().includes(term)||(p.club_name||"").toLowerCase().includes(term));
   $("registeredPlayerCount").textContent=players.length+" Players";
-  box.innerHTML=list.map(p=>`<div class="card" style="cursor:pointer" onclick="openPublicPlayerProfile('${p.id}')"><div style="display:flex;align-items:center;gap:12px">${p.avatar_url?`<img src="${esc(p.avatar_url)}" style="width:62px;height:62px;object-fit:cover;border-radius:50%">`:'<div class="avatar" style="width:62px;height:62px">👤</div>'}<div class="grow"><h3>${esc(p.display_name||"Player")}</h3><small class="muted">${esc(p.club_name||"AOS Player")}</small></div><span class="pill">View</span></div><p class="muted">eFootball ID: ${esc(p.efootball_id||"Not Added")}</p></div>`).join("")||'<div class="empty">কোনো Player পাওয়া যায়নি।</div>';
+  box.innerHTML=list.map(p=>`<div class="card" style="cursor:pointer" onclick="openPublicPlayerProfile('${p.id}')"><div style="display:flex;align-items:center;gap:12px">${p.avatar_url?`<img src="${esc(p.avatar_url)}" alt="Player Photo" style="width:72px;height:72px;object-fit:cover;border-radius:14px">`:'<div class="avatar" style="width:72px;height:72px;border-radius:14px">👤</div>'}<div class="grow"><h3>${esc(p.display_name||"Player")}</h3><small class="muted" style="display:block">Device: ${esc(p.device||"Not Added")}</small><small class="muted" style="display:block">User ID: ${esc(p.efootball_id||"Not Added")}</small></div><span class="pill">View</span></div></div>`).join("")||'<div class="empty">কোনো Player পাওয়া যায়নি।</div>';
 }
 function openPublicPlayerProfile(id){
   const p=players.find(x=>String(x.id)===String(id));if(!p)return;
@@ -2030,13 +2030,12 @@ $("auctionList").innerHTML = !auctionTournamentId
     <div class="item" style="display:block;margin-bottom:12px">
 
       <div style="display:flex;align-items:center;gap:10px">
-        <div class="avatar">⚽</div>
+        ${a.profile?.avatar_url?`<img src="${esc(a.profile.avatar_url)}" alt="Player Photo" style="width:68px;height:68px;object-fit:cover;border-radius:14px">`:'<div class="avatar" style="width:68px;height:68px;border-radius:14px">👤</div>'}
 
         <div class="grow">
           <b>${esc(a.profile?.display_name||"Auction Player")}</b>
-          <small>
-            eFootball ID: ${esc(a.profile?.efootball_id||"N/A")}
-          </small>
+          <small style="display:block">Device: ${esc(a.profile?.device||"Not Added")}</small>
+          <small style="display:block">User ID: ${esc(a.profile?.efootball_id||"N/A")}</small>
         </div>
 
         <span class="pill">
