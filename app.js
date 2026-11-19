@@ -301,6 +301,10 @@ async function buyPlayer(auctionPlayerId, teamId) {
     return msg("আগে একটি Team নির্বাচন করুন।", "error");
   }
 
+  if (!auctionTeams.some(team => String(team.id) === String(teamId))) {
+    return msg("নির্বাচিত Team এই Tournament-এর নয়। Tournament ও Team আবার নির্বাচন করুন।", "error");
+  }
+
   const player = auctionPlayers.find(
     a => String(a.id) === String(auctionPlayerId)
   );
@@ -1796,8 +1800,7 @@ $("auctionList").innerHTML = !auctionTournamentId
   `).join("");
 
   const teamOptions = auctionTeams.map(t => `
-  <option value="${esc(t.id)}"
-    ${highestBid && String(highestBid.team_id) === String(t.id) ? "selected" : ""}>
+  <option value="${esc(t.id)}">
     ${esc(t.name)} · Budget ${Number(t.budget || 0).toLocaleString()}
   </option>
 `).join("");
@@ -1912,8 +1915,6 @@ $("adminAuction").innerHTML=auctionPlayers.map(a=>`
     </div>
   </div>
 `).join("")||'<div class="empty">কোনো Auction Player নেই</div>';
-
-$("adminAuction").innerHTML=auctionPlayers.map(a=>`<div class="item"><div class="grow"><b>${esc(a.profile?.display_name||"Player")}</b><small>${a.base_price} · ${esc(a.status)}</small></div></div>`).join("");
 
 $("champList").innerHTML = champions.map(c => `
   <div class="card">
