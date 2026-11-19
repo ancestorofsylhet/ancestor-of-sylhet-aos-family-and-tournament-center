@@ -1,4 +1,4 @@
-﻿﻿
+﻿
 /* AOS Tournament Center — Supabase client application */
 const cfg=window.AOS_CONFIG||{};
 const ready=!!(cfg.SUPABASE_URL&&cfg.SUPABASE_ANON_KEY&&!cfg.SUPABASE_URL.includes("YOUR_")&&!cfg.SUPABASE_ANON_KEY.includes("YOUR_"));
@@ -345,7 +345,46 @@ async function buyPlayer(auctionPlayerId, teamId) {
     return msg(error.message, "error");
   }
 
-  msg("Player সফলভাবে Sold হয়েছে!", "success");
+  // Add the purchased player to the selected team's squad.
+  // Auction purchases are stored separately from the team_members table,
+  // which is what the Squad views read from.
+  if (!player.profile_id) {
+    msg("Player Sold হয়েছে, কিন্তু Auction Player-এর profile_id পাওয়া যায়নি। Squad-এ যোগ করা যায়নি।", "error");
+    await loadAll();
+    return;
+  }
+
+  const { data: existingMember, error: memberCheckError } = await db
+    .from("team_members")
+    .select("id")
+    .eq("team_id", teamId)
+    .eq("player_id", player.profile_id)
+    .maybeSingle();
+
+  if (memberCheckError) {
+    console.error("Squad membership check error:", memberCheckError);
+    msg("Player Sold হয়েছে, কিন্তু Squad membership যাচাই করা যায়নি: " + memberCheckError.message, "error");
+    await loadAll();
+    return;
+  }
+
+  if (!existingMember) {
+    const { error: squadError } = await db
+      .from("team_members")
+      .insert({
+        team_id: teamId,
+        player_id: player.profile_id
+      });
+
+    if (squadError) {
+      console.error("Add sold player to squad error:", squadError);
+      msg("Player Sold হয়েছে, কিন্তু Squad-এ যোগ করা যায়নি: " + squadError.message, "error");
+      await loadAll();
+      return;
+    }
+  }
+
+  msg("Player সফলভাবে Sold হয়েছে এবং Team Squad-এ যুক্ত হয়েছে!", "success");
 
   await loadAll();
 }
