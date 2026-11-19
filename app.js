@@ -33,7 +33,7 @@ const [t,p,tm,m,st,a,b,ch]=await Promise.all([
   db.from("teams").select("*"),
   db.from("matches").select("*,home:teams!matches_home_team_id_fkey(name),away:teams!matches_away_team_id_fkey(name)").order("round_no"),
   db.from("standings").select("*,team:teams(name)").order("points",{ascending:false}),
-  db.from("auction_players").select("*,profile:profiles(display_name,efootball_id,device,avatar_url),team:teams(id,name)").order("created_at",{ascending:false}),
+  db.from("auction_players").select("*,profile:profiles(display_name,efootball_id,device,avatar_url,is_active),team:teams(id,name)").order("created_at",{ascending:false}),
   db.from("auction_bids").select("*,team:teams(name)").order("created_at",{ascending:false}),
   db.from("champions").select("*").order("created_at",{ascending:false})
 ]);
@@ -43,7 +43,7 @@ players=p.data||[];
 teams=tm.data||[];
 matches=m.data||[];
 standings=st.data||[];
-auctionPlayers=a.data||[];
+auctionPlayers=(a.data||[]).filter(x=>x.profile?.is_active!==false);
 auctionBids=b.data||[];
 champions=ch.data||[];// Current player's tournament participation // Team Members Load
 const {data:memberData,error:memberError}=await db
@@ -54,14 +54,14 @@ const {data:memberData,error:memberError}=await db
     player_id,
     created_at,
     team:teams(id,name,logo_url,description,captain_id),
-    player:profiles(display_name,efootball_id,avatar_url)
+    player:profiles(display_name,efootball_id,avatar_url,is_active)
   `);
 
 if(memberError){
   console.error("Team Members Load Error:",memberError);
   teamMembers=[];
 }else{
-  teamMembers=memberData||[];
+  teamMembers=(memberData||[]).filter(m=>m.player?.is_active!==false);
 } 
 myParticipation=[];
 
