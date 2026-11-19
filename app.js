@@ -24,7 +24,7 @@ function closeAuth(){$("authModal").classList.add("hidden")}
 async function doAuth(mode){if(!db)return msg("আগে config.js-এ Supabase URL ও anon key বসান।","error");const email=$("authEmail").value.trim(),password=$("authPass").value;if(!email||!password)return msg("Email ও Password দিন।","error");const r=mode==="login"?await db.auth.signInWithPassword({email,password}):await db.auth.signUp({email,password});if(r.error)return msg(r.error.message,"error");if(mode==="signup"&&!r.data.session){msg("Account তৈরি হয়েছে। Email verification সম্পন্ন করে Login করুন।","success");return}session=r.data.session;closeAuth();await loadAll();msg("সফলভাবে Login হয়েছে।","success")}
 async function logout(){await db.auth.signOut();session=null;me=null;role="player";await loadAll()}
 async function init(){if(!ready){msg("Supabase এখনো সংযুক্ত নয়। ZIP-এর SETUP_GUIDE.md অনুসরণ করে config.js তৈরি করুন।");return}const {data}=await db.auth.getSession();session=data.session;db.auth.onAuthStateChange((_e,s)=>{session=s;setTimeout(loadAll,0)});await loadAll()}
-async function loadAll(){if(!db)return;const {data:{user}}=await db.auth.getUser();me=user;if(user){let p=await db.from("profiles").select("*").eq("id",user.id).maybeSingle();role=p.data?.role||"player"}else role="player";$("userLabel").textContent=user?(user.email+" · "+role):"Guest";$("authBtn").textContent=user?"Logout":"Login";$("authBtn").onclick=user?logout:openAuth;
+async function loadAll(){if(!db)return;loadSiteLogo();const {data:{user}}=await db.auth.getUser();me=user;if(user){let p=await db.from("profiles").select("*").eq("id",user.id).maybeSingle();role=p.data?.role||"player"}else role="player";$("userLabel").textContent=user?(user.email+" · "+role):"Guest";$("authBtn").textContent=user?"Logout":"Login";$("authBtn").onclick=user?logout:openAuth;
 const [t,p,tm,m,st,a,b,ch]=await Promise.all([
   db.from("tournaments").select("*").order("created_at",{ascending:false}),
   db.from("profiles").select("id,display_name,efootball_id,device,club_name,role,avatar_url"),
@@ -94,6 +94,40 @@ render();
 }
 function requireAdmin(){if(!me||!["admin","moderator"].includes(role)){msg("এই কাজের জন্য Admin/Moderator permission প্রয়োজন।","error");return false}return true}
 function requireMainAdmin(){if(!me||String(role).toLowerCase()!=="admin"){msg("Management Control Panel শুধু Main Admin ব্যবহার করতে পারবেন।","error");return false}return true}
+
+function loadSiteLogo(){
+ const img=$("siteLogo"),fallback=$("siteLogoFallback");
+ if(!img||!fallback||!db)return;
+ const url=db.storage.from("site-assets").getPublicUrl("branding/aos-logo").data.publicUrl;
+ img.onload=()=>{img.classList.remove("hidden");fallback.classList.add("hidden");};
+ img.onerror=()=>{img.classList.add("hidden");fallback.classList.remove("hidden");};
+ img.src=url+"?v="+Date.now();
+}
+function previewSiteLogo(input){
+ const file=input?.files?.[0],preview=$("siteLogoPreview");
+ if(!preview)return;
+ if(!file){preview.src="";preview.classList.add("hidden");return;}
+ const allowed=["image/png","image/jpeg","image/webp","image/svg+xml"];
+ if(!allowed.includes(file.type)){input.value="";return msg("PNG, JPG, WEBP বা SVG ছবি নির্বাচন করুন।","error");}
+ if(file.size>5*1024*1024){input.value="";return msg("Logo-এর সাইজ 5MB-এর মধ্যে রাখুন।","error");}
+ preview.src=URL.createObjectURL(file);preview.classList.remove("hidden");
+}
+async function uploadSiteLogo(){
+ if(!requireMainAdmin())return;
+ const input=$("siteLogoFile"),file=input?.files?.[0];
+ if(!file)return msg("আগে Logo image নির্বাচন করুন।","error");
+ const allowed=["image/png","image/jpeg","image/webp","image/svg+xml"];
+ if(!allowed.includes(file.type))return msg("PNG, JPG, WEBP বা SVG ছবি নির্বাচন করুন।","error");
+ if(file.size>5*1024*1024)return msg("Logo-এর সাইজ 5MB-এর মধ্যে রাখুন।","error");
+ const button=$("siteLogoUploadButton");if(button){button.disabled=true;button.textContent="Uploading...";}
+ const {error}=await db.storage.from("site-assets").upload("branding/aos-logo",file,{upsert:true,contentType:file.type,cacheControl:"3600"});
+ if(button){button.disabled=false;button.textContent="Upload Website Logo";}
+ if(error)return msg("Logo upload হয়নি: "+error.message,"error");
+ input.value="";
+ const preview=$("siteLogoPreview");if(preview){preview.src="";preview.classList.add("hidden");}
+ loadSiteLogo();
+ msg("AOS Website Logo সফলভাবে Upload হয়েছে।","success");
+}
 async function registerPlayer(){if(!me)return openAuth();let payload={id:me.id,display_name:$("pName").value.trim(),efootball_id:$("pEid").value.trim(),device:$("pDevice").value.trim(),club_name:$("pClub").value.trim()||"Ancestor of Sylhet"};if(!payload.display_name||!payload.efootball_id)return msg("Player Name ও eFootball ID দিন।","error");let r=await db.from("profiles").upsert(payload);if(r.error)return msg(r.error.message,"error");msg("Player profile submit হয়েছে।","success");await loadAll()}
 async function createTournament(){if(!requireAdmin())return;let x={name:$("tName").value.trim(),type:$("tType").value,season:$("tSeason").value,entry_fee:Number($("tFee").value||0),max_participants:Number($("tMax").value||16),status:$("tStatus").value,created_by:me.id};if(!x.name)return msg("Tournament name দিন।","error");let r=await db.from("tournaments").insert(x);if(r.error)return msg(r.error.message,"error");msg("Tournament তৈরি হয়েছে।","success");await loadAll()}
 async function createTeam() {
