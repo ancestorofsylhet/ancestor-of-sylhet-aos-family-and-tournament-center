@@ -54,7 +54,7 @@ const {data:memberData,error:memberError}=await db
     player_id,
     created_at,
     team:teams(id,name,logo_url,description,captain_id),
-    player:profiles(display_name,efootball_id,avatar_url,is_active)
+    player:profiles(display_name,efootball_id,device,club_name,avatar_url,is_active)
   `);
 
 if(memberError){
@@ -1488,19 +1488,18 @@ function renderTeamMemberList(){
   );
 
   box.innerHTML=members.map(m=>`
-    <div class="item">
-      <div class="avatar">👤</div>
-
-      <div class="grow">
+    <div class="item team-member-detail" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      ${m.player?.avatar_url
+        ? `<img src="${esc(m.player.avatar_url)}" alt="${esc(m.player?.display_name||"Player")}" style="width:58px;height:58px;object-fit:cover;border-radius:14px;border:1px solid var(--line)">`
+        : `<div class="avatar" style="width:58px;height:58px;display:grid;place-items:center">👤</div>`}
+      <div class="grow" style="min-width:180px">
         <b>${esc(m.player?.display_name||"Unknown Player")}</b>
-        <small>eFootball ID: ${esc(m.player?.efootball_id||"Not Added")}</small>
+        <small style="display:block;margin-top:4px">eFootball ID: ${esc(m.player?.efootball_id||"Not Added")}</small>
+        <small style="display:block">Device: ${esc(m.player?.device||"Not Added")}</small>
+        <small style="display:block">Club: ${esc(m.player?.club_name||"Not Added")}</small>
       </div>
-
       ${["admin","moderator"].includes(role)?`
-        <button class="btn danger"
-          onclick="removeTeamMember('${m.id}')">
-          Remove
-        </button>
+        <button class="btn danger" onclick="removeTeamMember('${m.id}')">Remove</button>
       `:""}
     </div>
   `).join("")||'<div class="empty">এই Team-এ এখনো কোনো Player নেই।</div>';
@@ -1640,11 +1639,15 @@ const teamIds=[...new Set([
           <small><b>Captain:</b> ${esc(captain?.display_name||"Not Assigned")}</small>
           <small style="display:block;margin-top:4px"><b>Squad (${squad.length})</b></small>
           ${squad.map(member=>`
-            <div style="display:flex;align-items:center;gap:8px;margin-top:7px">
+            <div style="display:flex;align-items:center;gap:9px;margin-top:10px;padding:9px;border:1px solid var(--line);border-radius:12px">
               ${member.player?.avatar_url
-                ? `<img src="${esc(member.player.avatar_url)}" alt="" style="width:30px;height:30px;object-fit:cover;border-radius:50%">`
-                : `<span class="avatar">👤</span>`}
-              <span>${esc(member.player?.display_name||"Unknown Player")}</span>
+                ? `<img src="${esc(member.player.avatar_url)}" alt="${esc(member.player?.display_name||"Player")}" style="width:42px;height:42px;object-fit:cover;border-radius:11px">`
+                : `<span class="avatar" style="width:42px;height:42px">👤</span>`}
+              <div style="min-width:0">
+                <b style="display:block">${esc(member.player?.display_name||"Unknown Player")}</b>
+                <small style="display:block">eFootball ID: ${esc(member.player?.efootball_id||"Not Added")}</small>
+                <small style="display:block">Device: ${esc(member.player?.device||"Not Added")} · Club: ${esc(member.player?.club_name||"Not Added")}</small>
+              </div>
             </div>
           `).join("")}
         </div>
