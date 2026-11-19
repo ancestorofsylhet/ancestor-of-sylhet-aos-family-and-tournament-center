@@ -126,6 +126,55 @@ footer{text-align:center;color:#8794a8;font-size:10px;letter-spacing:1.4px;font-
 .home-panel .item{padding:11px;border-radius:12px}.home-panel .empty{padding:17px;font-size:11px}
 @media(max-width:850px){.home-shortcuts{grid-template-columns:repeat(3,minmax(0,1fr))}.home-columns{grid-template-columns:1fr}}
 @media(max-width:600px){.home-stats{gap:8px}.home-stat{padding:12px 9px;gap:7px;flex-direction:column;align-items:flex-start}.home-stat>span{width:34px;height:34px;font-size:17px;border-radius:10px}.home-stat b{font-size:20px}.home-stat small{font-size:8px;line-height:1.3}.home-shortcuts{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.home-shortcuts button{padding:11px 5px}.home-panel{padding:13px}.home-panel-head h2{font-size:14px}}
+
+/* AOS GREEN • GOLD • KHOYERI • WHITE BRAND THEME */
+:root{
+ --ink:#30251d;--muted:#81766b;--line:#e8dfd2;--paper:#ffffff;--bg:#f7f8f3;
+ --navy:#174b32;--navy2:#236641;--blue:#28734a;--cyan:#8eaa76;--gold:#d5a638;
+ --green:#187747;--red:#b84343;--shadow:0 12px 32px rgba(54,72,48,.09);
+ --khoyeri:#795238;--khoyeri-dark:#543822;
+}
+body{background:linear-gradient(145deg,#f8faf5 0%,#f5f1e8 100%);color:var(--ink)}
+header{background:rgba(20,68,44,.97);border-bottom:1px solid #d5a63855}
+.brand small{color:#e7d6a8}
+.crest{background:linear-gradient(145deg,#e7c66b,#c9982e);color:#23452e;border-color:#fff0c3}
+.brand-logo{border-color:#e6c66b}
+.hero{background:linear-gradient(118deg,#174b32 0%,#236641 58%,#795238 100%);box-shadow:0 22px 48px rgba(31,78,48,.18)}
+.eyebrow{color:#f1d27e}
+.stat{background:#ffffff16;border-color:#ffffff35}
+.btn{background:linear-gradient(135deg,#e8c86e,#c99a32);color:#2f281b;box-shadow:0 5px 13px #9a762d2b}
+.btn.dark{background:#174b32;color:#fff}
+.btn.green{background:linear-gradient(135deg,#218653,#145d38);color:#fff}
+.btn.light{background:#fff;color:#31583d;border-color:#e5ddcf}
+.btn.danger{background:#fff0ed;color:#a63830}
+.head h2:before{background:var(--gold)}
+.card,.home-panel,.home-stat{border-color:#e8dfd2;box-shadow:var(--shadow)}
+.pill{background:#e7f3e9;color:#17623a}
+.pill.gold{background:#fbf1d6;color:#80601d}
+.tab.active{background:#174b32;border-color:#174b32}
+.field label{color:#4d4033}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:#4f9868;box-shadow:0 0 0 3px #4f98681a}
+.avatar{background:linear-gradient(145deg,#edf4e9,#dcebd9);color:#245b38}
+th{background:#edf4eb;color:#4e6651}
+.notice{background:#fbf4df;border-color:#ead69c;color:#70551b}
+.success{background:#e9f6ec;border-color:#b9dfc2;color:#17623a}
+.error{background:#fff0ed;border-color:#ecc5bd;color:#913a31}
+.bottom{background:rgba(20,68,44,.97);border-color:#ffffff25}
+.bottom button{color:#d5e4d8}
+.bottom button.active{background:linear-gradient(135deg,#e8c86e,#c99a32);color:#2d291e;box-shadow:0 4px 12px #d5a63844}
+.match{background:#f7faf5;border-color:#e5eadd}
+.empty{border-color:#cbd8c7;background:#fff;color:#756e62}
+.dashboard-profile{background:linear-gradient(120deg,#174b32,#795238)}
+.profile-photo{border-color:#e2bd59}
+#managementAdminPanel{border-color:#dce8d9;background:linear-gradient(180deg,#fff,#f7faf5)}
+#authModal>.card{box-shadow:0 25px 70px #163b2770}
+.home-stat>span{background:#f8efd7}
+.home-stat b{color:#174b32}
+.home-shortcuts button{border-color:#e5e9dc}
+.home-shortcuts button:hover{border-color:#b9d0b9}
+.dashboard-stats .card{border-color:#e6e1d5}
+@media(prefers-reduced-motion:no-preference){.btn,.item,.home-shortcuts button{transition:transform .18s,box-shadow .18s,border-color .18s}}
+
 </style></head>
 <body>
 <header><div class="brand"><img id="siteLogo" class="brand-logo hidden" alt="AOS Logo"><div id="siteLogoFallback" class="crest">AOS</div><div>ANCESTOR OF SYLHET<small>OFFICIAL TOURNAMENT CENTER</small></div></div><div class="row"><span id="userLabel" class="muted">Guest</span><button class="btn light" id="authBtn" onclick="openAuth()">Login</button></div></header>
