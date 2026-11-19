@@ -535,7 +535,7 @@ async function sendAuctionChatMessage() {
 /* Auction-only WebRTC voice room using private Supabase Realtime signaling. */
 let auctionVoiceChannel=null,auctionVoiceTournamentId="",auctionVoiceLocalStream=null;
 let auctionVoiceJoined=false,auctionVoiceMicMuted=true,auctionVoiceSpeakerMuted=false,auctionVoiceForcedMuted=false;
-let auctionVoicePeers={},auctionVoicePresence=[],auctionVoiceRemoteMuteState={};
+let auctionVoicePeers={},auctionVoicePresence=[],auctionVoiceRemoteMuteState={},auctionVoiceRemoteMicState={};
 function voiceAudioRoot(){
   let root=$("auctionVoiceAudioRoot");
   if(!root){root=document.createElement("div");root.id="auctionVoiceAudioRoot";root.style.display="none";document.body.appendChild(root);}
@@ -570,11 +570,14 @@ async function flushAuctionVoiceIce(entry){
   for(const candidate of entry.queuedIce.splice(0)){try{await entry.pc.addIceCandidate(new RTCIceCandidate(candidate));}catch(e){console.warn("Voice ICE:",e);}}
 }
 async function handleAuctionVoiceSignal(message){
-  if(!message||message.to!==me?.id||!message.from||message.from===me.id)return;
+  if(!message||(message.to!==me?.id&&message.to!=="*")||!message.from||message.from===me.id)return;
   const peerId=message.from,data=message.data||{};
+  if(data.type==="mic-state"){auctionVoiceRemoteMicState[peerId]=!!data.muted;renderAuctionVoiceStatus();return;}
   if(data.type==="remote-mute"||data.type==="remote-unmute"){
     auctionVoiceForcedMuted=data.type==="remote-mute";
+    auctionVoiceRemoteMuteState[me.id]=auctionVoiceForcedMuted;
     if(auctionVoiceForcedMuted){auctionVoiceMicMuted=true;auctionVoiceLocalStream?.getAudioTracks().forEach(t=>t.enabled=false);}
+    if(auctionVoiceChannel)auctionVoiceChannel.send({type:"broadcast",event:"signal",payload:{from:me.id,to:"*",data:{type:"mic-state",muted:auctionVoiceMicMuted}}});
     renderAuctionVoiceStatus();
     msg(auctionVoiceForcedMuted?"Admin আপনার Mic Mute করেছেন।":"Admin Mic restriction তুলে নিয়েছেন। Mic চালু করতে Unmute চাপুন।","notice");
     return;
@@ -616,11 +619,12 @@ async function joinAuctionVoice(){
   if(!tournament||!String(tournament.type||"").toLowerCase().includes("auction"))return msg("Voice Room শুধু Auction Tournament-এর জন্য।","error");
   if(!navigator.mediaDevices?.getUserMedia||!window.RTCPeerConnection)return msg("এই Browser-এ Voice Chat support করছে না। Chrome/Edge ও HTTPS ব্যবহার করুন।","error");
   if(auctionVoiceJoined&&auctionVoiceTournamentId===auctionTournamentId)return;
+  if(auctionRoom?.room_status==="completed")return msg("এই Auction Tournament সম্পন্ন হয়েছে; Voice Room বন্ধ।","error");
   if(auctionVoiceJoined)await leaveAuctionVoice();
   try{
     auctionVoiceLocalStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
     auctionVoiceLocalStream.getAudioTracks().forEach(t=>t.enabled=false);
-    auctionVoiceMicMuted=true;auctionVoiceForcedMuted=false;auctionVoiceSpeakerMuted=false;
+    auctionVoiceMicMuted=true;auctionVoiceForcedMuted=false;auctionVoiceSpeakerMuted=false;auctionVoiceRemoteMuteState={};auctionVoiceRemoteMicState={};
     auctionVoiceTournamentId=auctionTournamentId;
     const channel=db.channel("auction-voice:"+auctionTournamentId,{config:{private:true,presence:{key:me.id},broadcast:{self:false}}});
     auctionVoiceChannel=channel;
@@ -631,7 +635,9 @@ async function joinAuctionVoice(){
     channel.subscribe(async status=>{
       if(status==="SUBSCRIBED"){
         auctionVoiceJoined=true;
-        await channel.track({user_id:me.id,display_name:me.user_metadata?.display_name||me.email?.split("@")[0]||"AOS Member",role});
+        const myProfile=players.find(p=>String(p.id)===String(me.id));
+        await channel.track({user_id:me.id,display_name:myProfile?.display_name||me.user_metadata?.display_name||me.email?.split("@")[0]||"AOS Member",role});
+        await channel.send({type:"broadcast",event:"signal",payload:{from:me.id,to:"*",data:{type:"mic-state",muted:true}}});
         syncAuctionVoicePresence();renderAuctionVoiceStatus();
       }else if(status==="CHANNEL_ERROR"||status==="TIMED_OUT"){
         msg("Voice Room সংযোগ হয়নি। Supabase Realtime permission পরীক্ষা করুন।","error");
@@ -649,11 +655,12 @@ function toggleAuctionVoiceMic(){
   if(auctionVoiceForcedMuted)return msg("Admin-এর Mute restriction এখনো চালু আছে।","error");
   auctionVoiceMicMuted=!auctionVoiceMicMuted;
   auctionVoiceLocalStream?.getAudioTracks().forEach(t=>t.enabled=!auctionVoiceMicMuted);
+  auctionVoiceChannel?.send({type:"broadcast",event:"signal",payload:{from:me.id,to:"*",data:{type:"mic-state",muted:auctionVoiceMicMuted}}});
   renderAuctionVoiceStatus();
 }
 function toggleAuctionVoiceSpeaker(){
   auctionVoiceSpeakerMuted=!auctionVoiceSpeakerMuted;
-  document.querySelectorAll("#auctionVoiceAudioRoot audio").forEach(a=>a.muted=auctionVoiceSpeakerMuted);
+  document.querySelectorAll("#auctionVoiceAudioRoot audio").forEach(a=>{a.muted=auctionVoiceSpeakerMuted;if(!auctionVoiceSpeakerMuted)a.play().catch(()=>{});});
   renderAuctionVoiceStatus();
 }
 async function adminMuteAuctionVoiceUser(userId,shouldMute){
@@ -675,7 +682,7 @@ function renderAuctionVoiceStatus(){
   if(list){
     const people=[...(auctionVoiceJoined?[{user_id:me.id,display_name:me.user_metadata?.display_name||"You",self:true}]:[]),...auctionVoicePresence];
     list.innerHTML=people.map(p=>{
-      const muted=p.self?auctionVoiceMicMuted:!!auctionVoiceRemoteMuteState[p.user_id];
+      const muted=p.self?auctionVoiceMicMuted:!!auctionVoiceRemoteMicState[p.user_id];
       const connected=p.self||!!auctionVoicePeers[p.user_id];
       return '<div class="item" style="padding:8px 10px"><div class="grow"><b>'+esc(p.display_name||"Auction Member")+(p.self?" (You)":"")+'</b><small>'+(connected?"Voice Connected":"Connecting…")+(muted?" · Mic Muted":" · Mic On")+'</small></div>'+(!p.self&&["admin","moderator"].includes(String(role).toLowerCase())?'<button class="btn light" onclick="adminMuteAuctionVoiceUser(\''+p.user_id+'\','+(!muted)+')">'+(muted?"Unmute":"Mute")+'</button>':"")+'</div>';
     }).join("")||'<small class="muted">কেউ Voice Room-এ নেই।</small>';
@@ -685,7 +692,7 @@ async function leaveAuctionVoice(){
   Object.keys(auctionVoicePeers).forEach(closeAuctionVoicePeer);
   auctionVoiceLocalStream?.getTracks().forEach(t=>t.stop());auctionVoiceLocalStream=null;
   if(auctionVoiceChannel){try{await auctionVoiceChannel.untrack();await db.removeChannel(auctionVoiceChannel);}catch(e){}}
-  auctionVoiceChannel=null;auctionVoiceJoined=false;auctionVoiceTournamentId="";auctionVoicePresence=[];auctionVoiceRemoteMuteState={};auctionVoiceMicMuted=true;auctionVoiceForcedMuted=false;
+  auctionVoiceChannel=null;auctionVoiceJoined=false;auctionVoiceTournamentId="";auctionVoicePresence=[];auctionVoiceRemoteMuteState={};auctionVoiceRemoteMicState={};auctionVoiceMicMuted=true;auctionVoiceForcedMuted=false;
   renderAuctionVoiceStatus();
 }
 
