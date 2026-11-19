@@ -17,7 +17,7 @@ let selectedTournamentId="";
 let tournamentDetailTab="overview";
 let selectedTournamentTeams=[];
 let memberTournamentId="";
-let memberTeamId="";let auctionTournamentId = "";
+let memberTeamId="";let auctionTournamentId = "";let auctionTournamentSettings=null,auctionTeamSettings=[],auctionRoom=null,auctionChatMessages=[],auctionRealtimeChannel=null,auctionCallTimer=null,auctionCallAdvancing=false;
 const $=id=>document.getElementById(id), msg=(s,type="notice")=>{$("globalMsg").innerHTML=`<div class="notice ${type}">${esc(s)}</div>`;setTimeout(()=>{$("globalMsg").innerHTML=""},6500)};
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function toggleAOSSidebar(force){const side=$("aosSidebar"),shade=$("sidebarShade");if(!side||!shade)return;const open=typeof force==="boolean"?force:!side.classList.contains("open");side.classList.toggle("open",open);shade.classList.toggle("show",open);$("sidebarMenuBtn")?.setAttribute("aria-expanded",String(open));}function go(id){document.querySelectorAll(".page").forEach(x=>x.classList.add("hidden"));const page=$(id);if(!page)return;page.classList.remove("hidden");document.querySelectorAll(".bottom button,.top-nav button,.sidebar-link").forEach(x=>x.classList.toggle("active",x.dataset.id===id));toggleAOSSidebar(false);render();window.scrollTo(0,0)}
@@ -25,7 +25,7 @@ function openAuth(){$("authModal").classList.remove("hidden")}
 function closeAuth(){$("authModal").classList.add("hidden")}
 async function doAuth(mode){if(!db)return msg("আগে config.js-এ Supabase URL ও anon key বসান।","error");const email=$("authEmail").value.trim(),password=$("authPass").value;if(!email||!password)return msg("Email ও Password দিন।","error");const r=mode==="login"?await db.auth.signInWithPassword({email,password}):await db.auth.signUp({email,password});if(r.error)return msg(r.error.message,"error");if(mode==="signup"&&!r.data.session){msg("Account তৈরি হয়েছে। Email verification সম্পন্ন করে Login করুন।","success");return}session=r.data.session;closeAuth();await loadAll();msg("সফলভাবে Login হয়েছে।","success")}
 async function logout(){await db.auth.signOut();session=null;me=null;role="player";await loadAll()}
-async function init(){if(!ready){msg("Supabase এখনো সংযুক্ত নয়। ZIP-এর SETUP_GUIDE.md অনুসরণ করে config.js তৈরি করুন।");return}const {data}=await db.auth.getSession();session=data.session;db.auth.onAuthStateChange((_e,s)=>{session=s;setTimeout(loadAll,0)});await loadAll()}
+async function init(){if(!ready){msg("Supabase এখনো সংযুক্ত নয়। ZIP-এর SETUP_GUIDE.md অনুসরণ করে config.js তৈরি করুন।");return}const {data}=await db.auth.getSession();session=data.session;db.auth.onAuthStateChange((_e,s)=>{session=s;setTimeout(loadAll,0)});await loadAll();setupAuctionRealtime()}
 async function loadAll(){if(!db)return;loadSiteLogo();const {data:{user}}=await db.auth.getUser();me=user;if(user){let p=await db.from("profiles").select("*").eq("id",user.id).maybeSingle();role=p.data?.role||"player"}else role="player";$("userLabel").textContent=user?(user.email+" · "+role):"Guest";$("authBtn").textContent=user?"Logout":"Login";$("authBtn").onclick=user?logout:openAuth;
 const [t,p,tm,m,st,a,b,ch]=await Promise.all([
   db.from("tournaments").select("*").order("created_at",{ascending:false}),
@@ -343,69 +343,226 @@ function setupAuctionTournamentSelect() {
   }
 }
 
-// AUCTION ARENA TOURNAMENT SELECTOR
+// AUCTION ARENA — IPL STYLE TEAM AUCTION
 function setupAuctionArenaTournamentSelect() {
   const list = $("auctionList");
   if (!list || !list.parentElement) return;
-
-  let select = $("auctionArenaTournament");
-
-  if (!select) {
-    const wrapper = document.createElement("div");
-    wrapper.className = "card";
-    wrapper.style.marginBottom = "14px";
-    wrapper.innerHTML = `
-      <h3>Auction Arena</h3>
-      <p class="muted">প্রথমে Tournament নির্বাচন করুন।</p>
-      <select id="auctionArenaTournament">
-        <option value="">Select Tournament</option>
-      </select>
-    `;
-
-    list.parentElement.insertBefore(wrapper, list);
-    select = $("auctionArenaTournament");
-
-    select.addEventListener("change", async function () {
+  let selectorCard = $("auctionSelectorCard");
+  if (!selectorCard) {
+    selectorCard = document.createElement("div");
+    selectorCard.id = "auctionSelectorCard";
+    selectorCard.className = "card";
+    selectorCard.style.marginBottom = "14px";
+    selectorCard.innerHTML = '<div class="head" style="margin:0 0 10px"><h3>AOS Auction Arena</h3><span class="pill gold">LIVE AUCTION</span></div><p class="muted">শুধু Auction Tournament নির্বাচন করুন। Captain/Manager নির্ধারিত Team-এর হয়ে Bid করতে পারবেন।</p><select id="auctionArenaTournament"><option value="">Select Auction Tournament</option></select>';
+    list.parentElement.insertBefore(selectorCard, list);
+    $("auctionArenaTournament").addEventListener("change", async function () {
       auctionTournamentId = this.value;
       await loadAuctionTeams(this.value);
     });
   }
+  let panel = $("auctionControlPanel");
+  if (!panel) {
+    panel = document.createElement("div");
+    panel.id = "auctionControlPanel";
+    panel.className = "card";
+    panel.style.marginBottom = "14px";
+    selectorCard.insertAdjacentElement("afterend", panel);
+  }
+  let publicPanel = $("auctionTeamsPublic");
+  if (!publicPanel) {
+    publicPanel = document.createElement("div");
+    publicPanel.id = "auctionTeamsPublic";
+    publicPanel.className = "card";
+    publicPanel.style.marginBottom = "14px";
+    panel.insertAdjacentElement("afterend", publicPanel);
+  }
+  let chatPanel = $("auctionChatPanel");
+  if (!chatPanel) {
+    chatPanel = document.createElement("div");
+    chatPanel.id = "auctionChatPanel";
+    chatPanel.className = "card";
+    chatPanel.style.marginBottom = "14px";
+    publicPanel.insertAdjacentElement("afterend", chatPanel);
+  }
+  const listParent = list.parentElement;
+  if (panel.parentElement !== listParent) listParent.insertBefore(panel, list);
+  if (publicPanel.parentElement !== listParent) listParent.insertBefore(publicPanel, list);
+  if (chatPanel.parentElement !== listParent) listParent.insertBefore(chatPanel, list);
 
-  select.innerHTML =
-    '<option value="">Select Tournament</option>' +
-    tournaments.map(t =>
-      `<option value="${esc(t.id)}">${esc(t.name)}</option>`
-    ).join("");
-
-  select.value = auctionTournamentId || "";
+  const select = $("auctionArenaTournament");
+  const auctionOnly = tournaments.filter(t => String(t.type || "").toLowerCase().includes("auction"));
+  select.innerHTML = '<option value="">Select Auction Tournament</option>' + auctionOnly.map(t => `<option value="${esc(t.id)}">${esc(t.name)} · ${esc(t.season || "")}</option>`).join("");
+  if (auctionOnly.some(t => String(t.id) === String(auctionTournamentId))) select.value = auctionTournamentId;
+  else { select.value = ""; if (auctionTournamentId) { auctionTournamentId = ""; auctionTeams = []; auctionTournamentSettings = null; auctionTeamSettings = []; auctionRoom = null; } }
 }
 
-async function loadAuctionTeams(tournamentId) {
-  auctionTeams = [];
+async function loadAuctionArenaData(tournamentId) {
+  if (!tournamentId) return;
+  const [settings,teamSettings,room,chat] = await Promise.all([
+    db.from("auction_tournament_settings").select("*").eq("tournament_id",tournamentId).maybeSingle(),
+    db.from("auction_team_settings").select("*,team:teams(id,name,logo_url,captain_id)").eq("tournament_id",tournamentId),
+    db.from("auction_room_state").select("*").eq("tournament_id",tournamentId).maybeSingle(),
+    db.from("auction_chat_messages").select("*,sender:profiles(display_name,avatar_url)").eq("tournament_id",tournamentId).order("created_at",{ascending:false}).limit(40)
+  ]);
+  auctionTournamentSettings = settings.data || null;
+  auctionTeamSettings = teamSettings.data || [];
+  auctionRoom = room.data || null;
+  auctionChatMessages = (chat.data || []).reverse();
+  if (settings.error) console.warn("Auction settings:",settings.error.message);
+  if (teamSettings.error) console.warn("Auction team settings:",teamSettings.error.message);
+  if (room.error) console.warn("Auction room:",room.error.message);
+  if (chat.error) console.warn("Auction chat:",chat.error.message);
+}
 
+async function loadAuctionTeams(tournamentId, shouldRender=true) {
+  auctionTeams = [];
   if (!tournamentId) {
-    render();
+    auctionTournamentSettings=null;auctionTeamSettings=[];auctionRoom=null;auctionChatMessages=[];
+    if (shouldRender) render();
     return;
   }
-
-  const { data, error } = await db
-    .from("tournament_teams")
-    .select("team_id, team:teams(id,name,budget)")
+  const { data, error } = await db.from("tournament_teams")
+    .select("team_id, team:teams(id,name,budget,logo_url,captain_id)")
     .eq("tournament_id", tournamentId);
-
   if (error) {
     console.error("Auction Team Load Error:", error);
     msg("Auction Team Load Error: " + error.message, "error");
-    render();
-    return;
+  } else {
+    auctionTeams = (data || []).map(row => row.team).filter(team => team && team.id);
   }
+  await loadAuctionArenaData(tournamentId);
+  if (shouldRender) render();
+}
 
-  auctionTeams = (data || [])
-    .map(row => row.team)
-    .filter(team => team && team.id);
+async function saveAuctionTournamentSettings() {
+  if (!requireMainAdmin()) return;
+  if (!auctionTournamentId) return msg("Auction Tournament নির্বাচন করুন।","error");
+  const payload={
+    tournament_id:auctionTournamentId,
+    base_price:Number($("auctionBasePrice")?.value||100),
+    initial_budget:Number($("auctionInitialBudget")?.value||10000),
+    min_increment:Number($("auctionMinIncrement")?.value||100),
+    max_squad_size:Number($("auctionMaxSquad")?.value||10),
+    updated_at:new Date().toISOString()
+  };
+  if(payload.base_price<0||payload.initial_budget<0||payload.min_increment<=0||payload.max_squad_size<1) return msg("সঠিক Auction Settings দিন।","error");
+  const {error}=await db.from("auction_tournament_settings").upsert(payload,{onConflict:"tournament_id"});
+  if(error)return msg("Auction Settings Save হয়নি: "+error.message,"error");
+  await loadAuctionTeams(auctionTournamentId);
+  msg("Auction Tournament Settings Save হয়েছে।","success");
+}
 
-  console.log("Loaded Auction Teams:", auctionTeams);
+async function configureAuctionTeam(teamId) {
+  if (!requireMainAdmin()) return;
+  const budget=Number($("auctionBudget-"+teamId)?.value||0);
+  const captainId=$("auctionCaptain-"+teamId)?.value||null;
+  const managerId=$("auctionManager-"+teamId)?.value||null;
+  const {error}=await db.rpc("aos_configure_auction_team",{
+    p_tournament_id:auctionTournamentId,p_team_id:teamId,p_budget:budget,p_captain_id:captainId,p_manager_id:managerId
+  });
+  if(error)return msg("Team Auction Access Save হয়নি: "+error.message,"error");
+  await loadAuctionTeams(auctionTournamentId);
+  msg("Team Budget ও Captain/Manager Access Save হয়েছে।","success");
+}
+
+async function syncAuctionRegistration() {
+  if (!requireMainAdmin()) return;
+  if (!auctionTournamentId) return;
+  const {data,error}=await db.rpc("aos_sync_auction_players",{p_tournament_id:auctionTournamentId});
+  if(error)return msg("Player Sync হয়নি: "+error.message,"error");
+  await loadAll();
+  msg(Number(data||0)+" জন Registered Player Auction Pool-এ যুক্ত হয়েছে।","success");
+}
+
+async function startAuctionLot() {
+  if (!requireAdmin()) return;
+  const playerId=$("auctionLotSelect")?.value;
+  if(!playerId)return msg("Auction Player নির্বাচন করুন।","error");
+  const {error}=await db.rpc("aos_set_auction_current_player",{p_tournament_id:auctionTournamentId,p_auction_player_id:playerId});
+  if(error)return msg("Auction Lot Start হয়নি: "+error.message,"error");
+  await loadAuctionTeams(auctionTournamentId);
+  msg("নতুন Auction Lot Live হয়েছে।","success");
+}
+
+async function setAuctionRoomStatus(status) {
+  if (!requireAdmin()) return;
+  const {error}=await db.rpc("aos_set_auction_room_status",{p_tournament_id:auctionTournamentId,p_status:status});
+  if(error)return msg(error.message,"error");
+  await loadAuctionTeams(auctionTournamentId);
+}
+
+async function advanceAuctionCall() {
+  if(auctionCallAdvancing||!auctionTournamentId||!auctionRoom||auctionRoom.room_status!=="live"||!auctionRoom.call_deadline)return;
+  if(!["admin","moderator"].includes(role))return;
+  if(Date.now()<new Date(auctionRoom.call_deadline).getTime())return;
+  auctionCallAdvancing=true;
+  const {error}=await db.rpc("aos_advance_auction_call",{p_tournament_id:auctionTournamentId});
+  auctionCallAdvancing=false;
+  if(error){console.warn("Auction auto call:",error.message);return;}
+  await loadAuctionArenaData(auctionTournamentId);
   render();
+}
+
+function startAuctionCallTicker() {
+  if(auctionCallTimer)clearInterval(auctionCallTimer);
+  auctionCallTimer=setInterval(()=>{advanceAuctionCall();},500);
+}
+
+async function sendAuctionChatMessage() {
+  if(!me)return openAuth();
+  const input=$("auctionChatInput"),message=(input?.value||"").trim();
+  if(!message||!auctionTournamentId)return;
+  const {error}=await db.from("auction_chat_messages").insert({tournament_id:auctionTournamentId,sender_id:me.id,message});
+  if(error)return msg("Chat পাঠানো যায়নি: "+error.message,"error");
+  input.value="";
+  await loadAuctionArenaData(auctionTournamentId);
+  renderAuctionChat();
+}
+
+function renderAuctionChat() {
+  const panel=$("auctionChatPanel");
+  if(!panel)return;
+  if(!auctionTournamentId){panel.innerHTML='<h3>Auction Room Chat</h3><div class="empty">Auction Tournament নির্বাচন করুন।</div>';return;}
+  panel.innerHTML='<div class="head" style="margin:0 0 10px"><h3>Live Auction Chat</h3><span class="pill">Text Chat</span></div><div id="auctionChatMessages" style="max-height:230px;overflow:auto;display:grid;gap:8px;margin-bottom:12px">'+(auctionChatMessages.map(m=>'<div class="item" style="padding:9px 12px"><div class="grow"><b>'+esc(m.sender?.display_name||"Player")+'</b><small>'+esc(m.message)+'</small></div><small>'+new Date(m.created_at).toLocaleTimeString()+'</small></div>').join("")||'<div class="empty">এখনো কোনো Chat নেই।</div>')+'</div><div style="display:flex;gap:8px"><input id="auctionChatInput" maxlength="500" placeholder="Auction Room-এ message লিখুন..." style="flex:1;min-width:0"><button class="btn" onclick="sendAuctionChatMessage()">Send</button></div><p class="muted">এই Chat শুধু নির্বাচিত Auction Tournament-এর জন্য।</p>';
+  const box=$("auctionChatMessages");if(box)box.scrollTop=box.scrollHeight;
+}
+
+function renderAuctionControlPanel() {
+  const panel=$("auctionControlPanel"),publicPanel=$("auctionTeamsPublic");
+  if(!panel||!publicPanel)return;
+  if(!auctionTournamentId){panel.innerHTML='<div class="empty">Auction Tournament নির্বাচন করলে এখানে Live Auction Control ও Team Budget দেখা যাবে।</div>';publicPanel.innerHTML='<h3>Teams & Squads</h3><div class="empty">Tournament নির্বাচন করুন।</div>';renderAuctionChat();return;}
+  const isMainAdmin=String(role).toLowerCase()==="admin";
+  const staff=["admin","moderator"].includes(String(role).toLowerCase());
+  const settings=auctionTournamentSettings||{base_price:100,initial_budget:10000,min_increment:100,max_squad_size:10};
+  const playerOptions=auctionPlayers.filter(p=>String(p.tournament_id)===String(auctionTournamentId)&&p.status==="available").sort((a,b)=>(a.serial_no||0)-(b.serial_no||0)).map(p=>'<option value="'+p.id+'">'+(p.serial_no?("#"+p.serial_no+" · "):"")+esc(p.profile?.display_name||"Player")+'</option>').join("");
+  const profileOptions='<option value="">Not Assigned</option>'+players.map(p=>'<option value="'+p.id+'">'+esc(p.display_name||"Player")+'</option>').join("");
+  const teamConfig=auctionTeams.map(t=>{
+    const cfg=auctionTeamSettings.find(x=>String(x.team_id)===String(t.id))||{};
+    return '<div class="item" style="display:block"><div style="display:flex;align-items:center;gap:10px">'+(t.logo_url?'<img src="'+esc(t.logo_url)+'" style="width:42px;height:42px;object-fit:contain;border-radius:10px">':'<div class="avatar">🏆</div>')+'<div class="grow"><b>'+esc(t.name)+'</b><small>Remaining Budget: '+Number(cfg.budget_remaining??t.budget??0).toLocaleString()+'</small></div></div>'+(isMainAdmin?'<div class="form" style="margin-top:12px"><div class="field"><label>Team Budget</label><input id="auctionBudget-'+t.id+'" type="number" min="0" value="'+Number(cfg.budget_total??settings.initial_budget)+'"></div><div class="field"><label>Captain</label><select id="auctionCaptain-'+t.id+'">'+profileOptions+'</select></div><div class="field"><label>Manager</label><select id="auctionManager-'+t.id+'">'+profileOptions+'</select></div><div class="field"><button class="btn green" onclick="configureAuctionTeam(\''+t.id+'\')">Save Team Access</button></div></div><script>/* selection restored by render helper */</script>':'')+'</div>';
+  }).join("");
+  panel.innerHTML='<div class="head" style="margin:0 0 12px"><h3>Auction Control Center</h3><span class="pill gold">'+(auctionRoom?.room_status||"SETUP").toUpperCase()+'</span></div>'+(isMainAdmin?'<div class="card" style="background:#f8fbff;box-shadow:none;margin-bottom:12px"><h3>Tournament Auction Settings · Main Admin</h3><div class="form"><div class="field"><label>Base Price</label><input id="auctionBasePrice" type="number" min="0" value="'+Number(settings.base_price)+'"></div><div class="field"><label>Each Team Budget</label><input id="auctionInitialBudget" type="number" min="0" value="'+Number(settings.initial_budget)+'"></div><div class="field"><label>Minimum Bid Increase</label><input id="auctionMinIncrement" type="number" min="1" value="'+Number(settings.min_increment)+'"></div><div class="field"><label>Maximum Squad Size</label><input id="auctionMaxSquad" type="number" min="1" value="'+Number(settings.max_squad_size)+'"></div><div class="field full"><button class="btn green" onclick="saveAuctionTournamentSettings()">Save Auction Settings</button><button class="btn light" onclick="syncAuctionRegistration()">Sync Registered Players to Auction Pool</button></div></div></div>':'')+(isMainAdmin?'<h3>Captain / Manager & Team Budget Setup</h3><div class="list">'+(teamConfig||'<div class="empty">আগে Tournament-এ Team যুক্ত করুন।</div>')+'</div>':'')+'<div class="card" style="background:#f8fbff;box-shadow:none;margin-top:12px"><div class="head" style="margin:0 0 10px"><h3>Live Auction Lot</h3><span class="pill">'+(auctionRoom?.room_status||"Setup")+'</span></div>'+(auctionRoom?.current_player_id?'<p class="muted">Current Lot: '+esc(auctionPlayers.find(p=>String(p.id)===String(auctionRoom.current_player_id))?.profile?.display_name||"Player")+' · Call: '+(["Bidding","1","2","3","Last Call"][auctionRoom.call_stage||0])+'</p>':'<p class="muted">এখনো কোনো Player Live করা হয়নি।</p>')+(staff?'<div class="form"><div class="field"><label>Next Player</label><select id="auctionLotSelect"><option value="">Select Available Player</option>'+playerOptions+'</select></div><div class="field"><label>Room Control</label><button class="btn green" onclick="startAuctionLot()">Start Selected Player</button></div></div>'+(auctionRoom?.room_status==="live"?'<button class="btn light" onclick="setAuctionRoomStatus(\'paused\')">Pause Auction</button>':'')+(auctionRoom?.room_status==="paused"?'<button class="btn green" onclick="setAuctionRoomStatus(\'live\')">Resume Auction</button>':''):'')+'</div>';
+  // Restore Captain and Manager selections after building the control form.
+  auctionTeams.forEach(t=>{const cfg=auctionTeamSettings.find(x=>String(x.team_id)===String(t.id));if(cfg){const c=$("auctionCaptain-"+t.id),m=$("auctionManager-"+t.id);if(c)c.value=cfg.captain_id||"";if(m)m.value=cfg.manager_id||"";}});
+  const currentPlayer=auctionRoom?.current_player_id?auctionPlayers.find(p=>String(p.id)===String(auctionRoom.current_player_id)):null;
+  const budgetCards=auctionTeams.map(t=>{
+    const cfg=auctionTeamSettings.find(x=>String(x.team_id)===String(t.id))||{};
+    const squad=auctionPlayers.filter(p=>String(p.tournament_id)===String(auctionTournamentId)&&String(p.team_id)===String(t.id)&&p.status==="sold");
+    return '<details class="item" style="display:block"><summary style="cursor:pointer;display:flex;align-items:center;gap:10px">'+(t.logo_url?'<img src="'+esc(t.logo_url)+'" style="width:38px;height:38px;object-fit:contain;border-radius:8px">':'<div class="avatar">🏆</div>')+'<span class="grow"><b>'+esc(t.name)+'</b><small>Budget Left: '+Number(cfg.budget_remaining??t.budget??0).toLocaleString()+' · Players: '+squad.length+'</small></span></summary><div style="margin-top:12px">'+(squad.map(p=>'<div class="item" style="padding:8px;margin-top:6px">'+(p.profile?.avatar_url?'<img src="'+esc(p.profile.avatar_url)+'" style="width:40px;height:40px;object-fit:cover;border-radius:50%">':'<div class="avatar">👤</div>')+'<div class="grow"><b>'+esc(p.profile?.display_name||"Player")+'</b><small>Sold: '+Number(p.sold_price||0).toLocaleString()+'</small></div></div>').join("")||'<small class="muted">এখনো কোনো Player কেনা হয়নি।</small>')+'</div></details>';
+  }).join("");
+  publicPanel.innerHTML='<div class="head" style="margin:0 0 12px"><h3>Teams, Budgets & Squads</h3><span class="pill">'+auctionTeams.length+' Teams</span></div>'+(budgetCards||'<div class="empty">এই Tournament-এ Team নেই।</div>');
+  renderAuctionChat();
+  if(auctionRoom?.call_deadline)startAuctionCallTicker();
+}
+
+function setupAuctionRealtime() {
+  if(!db||auctionRealtimeChannel)return;
+  auctionRealtimeChannel=db.channel("aos-auction-realtime")
+    .on("postgres_changes",{event:"*",schema:"public",table:"auction_bids"},async()=>{await loadAll();if(auctionTournamentId)await loadAuctionTeams(auctionTournamentId);})
+    .on("postgres_changes",{event:"*",schema:"public",table:"auction_players"},async()=>{await loadAll();if(auctionTournamentId)await loadAuctionTeams(auctionTournamentId);})
+    .on("postgres_changes",{event:"*",schema:"public",table:"auction_team_settings"},async()=>{if(auctionTournamentId){await loadAuctionTeams(auctionTournamentId);}})
+    .on("postgres_changes",{event:"*",schema:"public",table:"auction_room_state"},async()=>{if(auctionTournamentId){await loadAuctionTeams(auctionTournamentId);}})
+    .on("postgres_changes",{event:"INSERT",schema:"public",table:"auction_chat_messages"},async()=>{if(auctionTournamentId){await loadAuctionArenaData(auctionTournamentId);renderAuctionChat();}})
+    .subscribe();
 }
 
 function setupAuctionProfileSelect() {
@@ -465,8 +622,9 @@ async function buyPlayer(auctionPlayerId, teamId) {
     .filter(b => String(b.auction_player_id) === String(auctionPlayerId))
     .sort((a, b) => Number(b.amount) - Number(a.amount))[0];
 
+  const minStep=Number(auctionTournamentSettings?.min_increment||100);
   const suggestedPrice = highestBid
-    ? Number(highestBid.amount)
+    ? Number(highestBid.amount)+minStep
     : Number(player.base_price);
 
   const priceInput = prompt(
@@ -2074,6 +2232,7 @@ function render() {
   setupAuctionTournamentSelect();
   setupAuctionArenaTournamentSelect();
   setupAuctionProfileSelect();
+  renderAuctionControlPanel();
 
   populateTournamentSelects();
   setupTeamManagement();
