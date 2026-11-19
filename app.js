@@ -358,6 +358,7 @@ function setupAuctionArenaTournamentSelect() {
     list.parentElement.insertBefore(selectorCard, list);
     $("auctionArenaTournament").addEventListener("change", async function () {
       auctionTournamentId = this.value;
+      if(auctionVoiceJoined)await leaveAuctionVoice();
       await loadAuctionTeams(this.value);
     });
   }
@@ -724,7 +725,7 @@ function renderAuctionControlPanel() {
   const budgetRank=[...auctionTeamSettings].sort((a,b)=>Number(b.budget_remaining||0)-Number(a.budget_remaining||0)).map((x,i)=>'<div class="item"><b>#'+(i+1)+'</b><div class="grow"><b>'+esc(x.team?.name||"Team")+'</b><small>Budget remaining</small></div><b>'+Number(x.budget_remaining||0).toLocaleString()+' pts</b></div>').join("");
   publicPanel.innerHTML='<div class="head" style="margin:0 0 12px"><h3>Teams, Budgets & Squads</h3><span class="pill">'+auctionTeams.length+' Teams</span></div>'+(budgetCards||'<div class="empty">এই Tournament-এ Team নেই।</div>')+'<div class="head"><h3>Player Auction Ranking</h3><span class="pill gold">Highest Sold Price</span></div>'+(soldRanking||'<div class="empty">এখনো কোনো Player Sold হয়নি।</div>')+'<div class="head"><h3>Team Budget Ranking</h3></div>'+(budgetRank||'<div class="empty">Team Budget এখনো Configure করা হয়নি।</div>');
   renderAuctionChat();
-  if(auctionRoom?.call_deadline)startAuctionCallTicker();
+  startAuctionCallTicker();
 }
 
 function setupAuctionRealtime() {
@@ -897,9 +898,10 @@ async function placeBid(auctionPlayerId, teamId) {
     Number(player.base_price)
   );
 
+  const minIncrement=Number(auctionTournamentSettings?.min_increment||100);
   const amountInput = prompt(
-    `Current Highest Bid: ${highestBid}\nআপনার Bid Amount লিখুন:`,
-    String(highestBid + 100)
+    `Current Highest Bid: ${highestBid}\nMinimum Increase: ${minIncrement}\nআপনার Bid Amount লিখুন:`,
+    String(highestBid + minIncrement)
   );
 
   if (amountInput === null) return;
@@ -2502,6 +2504,7 @@ $("auctionList").innerHTML = !auctionTournamentId
             Highest bidder: ${esc(highestBid.team?.name||"Team")}
           </small>
         `:""}
+        ${isActiveLot?`<div style="margin-top:8px"><span class="pill gold">LIVE CALL: ${["Bidding","1","2","3","LAST CALL"][Number(auctionRoom?.call_stage||0)]||"Bidding"}</span></div>`:""}
       </div>
 
       ${a.status==="available"?`
