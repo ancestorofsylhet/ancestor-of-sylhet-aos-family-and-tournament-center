@@ -229,6 +229,32 @@ th{background:#edf4eb;color:#4e6651}
 <div class="head"><h2>চলমান টুর্নামেন্ট</h2><button class="btn light" onclick="go('tournaments')">সব দেখুন</button></div><div id="homeTours" class="grid"></div></section>
 <section id="tournaments" class="page hidden"><div class="head"><h2>Tournament Center</h2><button class="btn" onclick="go('admin')">+ Create</button></div><div id="tourList" class="grid"></div></section>
 <section id="register" class="page hidden"><div class="head"><h2>Player Registration</h2></div><div class="card"><div class="form"><div class="field"><label>Player Name *</label><input id="pName"></div><div class="field"><label>eFootball User ID *</label><input id="pEid"></div><div class="field"><label>Device</label><input id="pDevice" placeholder="Android / iOS"></div><div class="field"><label>Club</label><input id="pClub" value="Ancestor of Sylhet"></div><div class="field full"><button class="btn green" onclick="registerPlayer()">Registration Submit</button></div></div><p class="muted">রেজিস্ট্রেশনের জন্য Player Account-এ Login থাকতে হবে।</p></div></section>
+<section id="tournamentCards" class="page hidden">
+  <div class="head"><h2>Tournament Registration Card Maker</h2><span class="pill gold">Player Card</span></div>
+  <div class="card">
+    <p class="muted">Tournament নির্বাচন করে সঠিক Player Details ও Photo দিয়ে Register করুন। Registration সফল হলে Player Card তৈরি হবে।</p>
+    <div class="form">
+      <div class="field full"><label>Tournament *</label><select id="cardTournament"><option value="">Select Tournament</option></select></div>
+      <div class="field"><label>Player Name *</label><input id="cardPlayerName" placeholder="Full Player Name" required></div>
+      <div class="field"><label>Device *</label><input id="cardPlayerDevice" placeholder="Android / iOS" required></div>
+      <div class="field"><label>eFootball User ID *</label><input id="cardPlayerEid" placeholder="eFootball User ID" required></div>
+      <div class="field"><label>Club Name *</label><input id="cardPlayerClub" placeholder="Club Name" required></div>
+      <div class="field full"><label>Player Photo *</label><input id="cardPlayerPhoto" type="file" accept="image/png,image/jpeg,image/webp" required><small class="muted">JPG, PNG বা WEBP · সর্বোচ্চ 5MB</small></div>
+      <div class="field full"><button class="btn green" id="cardRegisterButton" onclick="registerTournamentCard()">Register & Create Player Card</button></div>
+    </div>
+    <p class="muted">Registration করতে Player Account-এ Login থাকতে হবে। Photo, Name, Device, User ID এবং Club Name—সব তথ্য বাধ্যতামূলক।</p>
+  </div>
+  <div id="tournamentCardResult" class="card hidden" style="margin-top:16px">
+    <div class="head"><h3>Your Tournament Player Card</h3><span class="pill">Ready</span></div>
+    <img id="tournamentCardPreview" alt="Tournament Registration Card" style="display:block;width:100%;max-width:680px;margin:12px auto;border-radius:16px;border:1px solid var(--line)">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+      <button class="btn green" onclick="downloadTournamentCard()">Download Card</button>
+      <button class="btn light" onclick="shareTournamentCard()">Share Card</button>
+    </div>
+  </div>
+  <div class="head" style="margin-top:20px"><h3>My Tournament Registrations</h3></div>
+  <div id="myTournamentCards" class="list"></div>
+</section>
 <section id="auction" class="page hidden"><div class="head"><h2>Auction Arena</h2><span class="pill gold">Live Bidding</span></div><div class="card"><p class="muted">Auction-এ অংশ নিতে Login করুন। Bid ও Player Purchase Database transaction দিয়ে নিয়ন্ত্রিত হবে।</p><div id="auctionList" class="list"></div></div></section>
 
 <section id="fixtures" class="page hidden">
@@ -412,6 +438,7 @@ th{background:#edf4eb;color:#4e6651}
   <div class="list">
 
  
+    <div class="item" onclick="go('tournamentCards')"><div class="avatar">🎟</div><div class="grow"><b>Tournament Registration Card Maker</b><small>Register and create your tournament player card</small></div>›</div>
     <div class="item" onclick="go('playersDirectory')"><div class="avatar">👥</div><div class="grow"><b>Registered Players</b><small>All public player profiles</small></div>›</div>
     <div class="item" onclick="go('awards')"><div class="avatar">🏅</div><div class="grow"><b>Awards & Statistics</b><small>Player awards and downloadable cards</small></div>›</div>
     <div class="item" onclick="go('management')"><div class="avatar">🛡</div><div class="grow"><b>Admin & Management</b><small>Meet the AOS management team</small></div>›</div>
@@ -459,6 +486,7 @@ th{background:#edf4eb;color:#4e6651}
 <nav class="bottom">
   <button class="active" data-id="home" onclick="go('home')">⌂ Home</button>
   <button data-id="tournaments" onclick="go('tournaments')">🏆 Events</button>
+  <button data-id="tournamentCards" onclick="go('tournamentCards')">🎟 Cards</button>
   <button data-id="auction" onclick="go('auction')">⚒ Auction</button>
   <button data-id="fixtures" onclick="go('fixtures')">⚽ Matches</button>
   <button data-id="standings" onclick="go('standings')">▤ Table</button>
