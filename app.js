@@ -675,16 +675,19 @@ function renderAuctionVoiceStatus(){
   if(state)state.textContent=auctionVoiceJoined?"Connected":"Not Joined";
   if(controls){
     controls.innerHTML=auctionVoiceJoined
-      ?'<button class="btn '+(auctionVoiceMicMuted?"light":"green")+'" onclick="toggleAuctionVoiceMic()">'+(auctionVoiceMicMuted?"Mic Unmuted":"Mute Mic")+'</button><button class="btn light" onclick="toggleAuctionVoiceSpeaker()">'+(auctionVoiceSpeakerMuted?"Unmute Speaker":"Mute Speaker")+'</button><button class="btn danger" onclick="leaveAuctionVoice()">Leave Voice</button>'
+      ?'<button class="btn '+(auctionVoiceMicMuted?"light":"green")+'" '+(auctionVoiceForcedMuted?"disabled":"")+' onclick="toggleAuctionVoiceMic()">'+(auctionVoiceForcedMuted?"Admin Muted":auctionVoiceMicMuted?"Unmute Mic":"Mute Mic")+'</button><button class="btn light" onclick="toggleAuctionVoiceSpeaker()">'+(auctionVoiceSpeakerMuted?"Unmute Speaker":"Mute Speaker")+'</button><button class="btn danger" onclick="leaveAuctionVoice()">Leave Voice</button>'
       :'<button class="btn green" onclick="joinAuctionVoice()">Join Voice Room</button>';
-    if(auctionVoiceForcedMuted&&auctionVoiceJoined)controls.insertAdjacentHTML("afterbegin",'<span class="pill gold">Admin Muted</span>');
   }
   if(list){
-    const people=[...(auctionVoiceJoined?[{user_id:me.id,display_name:me.user_metadata?.display_name||"You",self:true}]:[]),...auctionVoicePresence];
+    const myProfile=players.find(p=>String(p.id)===String(me?.id));
+    const people=[...(auctionVoiceJoined?[{user_id:me.id,display_name:myProfile?.display_name||"You",self:true}]:[]),...auctionVoicePresence];
     list.innerHTML=people.map(p=>{
       const muted=p.self?auctionVoiceMicMuted:!!auctionVoiceRemoteMicState[p.user_id];
+      const forced=!p.self&&!!auctionVoiceRemoteMuteState[p.user_id];
       const connected=p.self||!!auctionVoicePeers[p.user_id];
-      return '<div class="item" style="padding:8px 10px"><div class="grow"><b>'+esc(p.display_name||"Auction Member")+(p.self?" (You)":"")+'</b><small>'+(connected?"Voice Connected":"Connecting…")+(muted?" · Mic Muted":" · Mic On")+'</small></div>'+(!p.self&&["admin","moderator"].includes(String(role).toLowerCase())?'<button class="btn light" onclick="adminMuteAuctionVoiceUser(\''+p.user_id+'\','+(!muted)+')">'+(muted?"Unmute":"Mute")+'</button>':"")+'</div>';
+      const adminButton=!p.self&&["admin","moderator"].includes(String(role).toLowerCase())
+        ?'<button class="btn light" onclick="adminMuteAuctionVoiceUser(\''+p.user_id+'\','+(!forced)+')">'+(forced?"Lift Mute":"Mute Mic")+'</button>':"";
+      return '<div class="item" style="padding:8px 10px"><div class="grow"><b>'+esc(p.display_name||"Auction Member")+(p.self?" (You)":"")+'</b><small>'+(connected?"Voice Connected":"Connecting…")+(muted?" · Mic Muted":" · Mic On")+(forced?" · Admin Restricted":"")+'</small></div>'+adminButton+'</div>';
     }).join("")||'<small class="muted">কেউ Voice Room-এ নেই।</small>';
   }
 }
