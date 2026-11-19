@@ -316,6 +316,9 @@ header{gap:18px;height:78px;padding-left:max(18px,calc((100% - 1320px)/2));paddi
 @media(max-width:560px){.auction-page-head{padding:17px 15px;align-items:flex-start}.auction-live-chip{font-size:9px;padding:8px}.auction-player-focus{grid-template-columns:112px minmax(0,1fr);gap:12px;padding:14px}.auction-player-info h3{font-size:21px}.auction-player-photo{border-radius:12px}.auction-bid-panel{margin:0 10px 12px;padding:14px 9px}.auction-call-track{padding:10px 8px 14px}.auction-call-step{font-size:8px}.auction-call-step span{width:29px;height:29px}.auction-side-stack{grid-template-columns:1fr}.auction-current-amount{font-size:30px}}
 
 
+
+.apf-tabs{display:flex;gap:7px;overflow:auto;padding:3px 0 13px;margin-bottom:12px;border-bottom:1px solid #e6ebdf}.apf-tabs button{white-space:nowrap;border:1px solid #dfe7da;border-radius:24px;background:#fff;color:#637064;padding:9px 13px;font-size:10px;font-weight:850}.apf-tabs button.active{background:#174a30;color:#fff;border-color:#174a30;box-shadow:0 5px 13px #174a3020}
+
 /* AOS AUCTION PLAYER LEAGUE */
 #auctionMatchCenter{border-radius:20px;padding:20px;border:1px solid #e3eadf;background:linear-gradient(180deg,#fff,#f8fbf7)}
 .apf-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}.apf-heading h2,.apf-heading h3{margin:0;color:#17472e}.apf-heading p{margin:5px 0 0;color:#758174;font-size:12px}.apf-heading>span:last-child{font-size:10px;letter-spacing:1px;color:#98752a;font-weight:900}
@@ -649,5 +652,5 @@ header{gap:18px;height:78px;padding-left:max(18px,calc((100% - 1320px)/2));paddi
   <button data-id="playersDirectory" onclick="go('playersDirectory')">👥 Players</button>
 </nav>
 <div id="authModal" class="hidden" style="position:fixed;inset:0;background:#0b1730aa;z-index:20;display:grid;place-items:center;padding:16px"><div class="card" style="width:min(440px,100%)"><div class="row"><h2 id="authTitle">Login</h2><button class="btn light" onclick="closeAuth()">✕</button></div><div class="field"><label>Email</label><input id="authEmail" type="email"></div><div class="field" style="margin-top:10px"><label>Password</label><input id="authPass" type="password"></div><div class="row" style="margin-top:14px"><button class="btn" onclick="doAuth('login')">Login</button><button class="btn light" onclick="doAuth('signup')">Create Account</button></div><p class="muted">নতুন Account তৈরি করলে Email verification প্রয়োজন হতে পারে।</p></div></div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="config.js"></script><script src="app.js?v=20261119-22"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="config.js"></script><script src="app.js?v=20261119-23"></script>
 </body></html>
