@@ -1473,6 +1473,46 @@ async function assignPlayerToTeam(){
 }
 
 
+function renderTeamDirectory(){
+  const box=$("publicTeamDirectory");
+  if(!box)return;
+  const activeTeams=teams.map(team=>({
+    team,
+    members:teamMembers.filter(m=>String(m.team_id)===String(team.id))
+  })).filter(x=>x.members.length);
+  if(!activeTeams.length){
+    box.innerHTML='<div class="empty">এখনো কোনো Team-এর Squad প্রকাশ করা হয়নি।</div>';
+    return;
+  }
+  box.innerHTML=activeTeams.map(({team,members})=>`
+    <article class="team-directory-card">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+        ${team.logo_url
+          ? `<img src="${esc(team.logo_url)}" alt="${esc(team.name)} logo" style="width:58px;height:58px;object-fit:contain;border-radius:14px;background:#f7f8f3;padding:4px">`
+          : `<div class="avatar" style="width:58px;height:58px;display:grid;place-items:center">⚽</div>`}
+        <div class="grow" style="min-width:0">
+          <h3 style="margin:0">${esc(team.name||"Team")}</h3>
+          <small class="muted">${members.length} Squad Player${members.length===1?"":"s"}</small>
+        </div>
+      </div>
+      ${team.description?`<p class="muted" style="margin:0 0 12px">${esc(team.description)}</p>`:""}
+      ${members.map(m=>`
+        <div class="team-directory-player">
+          ${m.player?.avatar_url
+            ? `<img src="${esc(m.player.avatar_url)}" alt="${esc(m.player?.display_name||"Player")} photo">`
+            : `<div class="team-player-fallback">${esc((m.player?.display_name||"?")[0].toUpperCase())}</div>`}
+          <div style="min-width:0;flex:1">
+            <b>${esc(m.player?.display_name||"Unknown Player")}</b>
+            <small>eFootball ID: ${esc(m.player?.efootball_id||"Not Added")}</small>
+            <small>Device: ${esc(m.player?.device||"Not Added")}</small>
+            <small>Club: ${esc(m.player?.club_name||"Not Added")}</small>
+          </div>
+        </div>
+      `).join("")}
+    </article>
+  `).join("");
+}
+
 // Selected Team-এর Member List
 function renderTeamMemberList(){
   const box=$("teamMemberList");
@@ -2026,6 +2066,7 @@ function renderHomePlayer(p){
 function render() {
   renderTournamentCardMaker();
   renderPublicPlayers();
+  renderTeamDirectory();
   ensurePlayerApprovalPanel();
   renderAwards();
   renderManagement();
