@@ -5,6 +5,8 @@ const ready=!!(cfg.SUPABASE_URL&&cfg.SUPABASE_ANON_KEY&&!cfg.SUPABASE_URL.includ
 const db=ready?window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_KEY):null;
 let session=null,me=null,role="player",tournaments=[],teams=[],players=[],matches=[],standings=[],auctionPlayers=[],auctionBids=[],champions=[],auctionTeams=[];
 let myParticipation=[];
+let myTournamentRegs=[];
+let currentTournamentCard=null;
 let playerMatchStats=[];
 let managementMembers=[];
 let managementTableReady=false;
@@ -77,6 +79,10 @@ if(me){
   }
 } 
 
+if(me){
+ const {data:cardRegs,error:cardRegsError}=await db.from("tournament_participants").select("id,tournament_id,status,created_at,tournament:tournaments(name,type,season)").eq("profile_id",me.id).order("created_at",{ascending:false});
+ if(cardRegsError){console.warn("Tournament card registrations:",cardRegsError.message);myTournamentRegs=[];}else myTournamentRegs=cardRegs||[];
+}else myTournamentRegs=[];
 if(b.error){
   console.error("Auction bids loading error:",b.error);
   auctionBids=[];
@@ -129,6 +135,71 @@ async function uploadSiteLogo(){
  msg("AOS Website Logo সফলভাবে Upload হয়েছে।","success");
 }
 async function registerPlayer(){if(!me)return openAuth();let payload={id:me.id,display_name:$("pName").value.trim(),efootball_id:$("pEid").value.trim(),device:$("pDevice").value.trim(),club_name:$("pClub").value.trim()||"Ancestor of Sylhet"};if(!payload.display_name||!payload.efootball_id)return msg("Player Name ও eFootball ID দিন।","error");let r=await db.from("profiles").upsert(payload);if(r.error)return msg(r.error.message,"error");msg("Player profile submit হয়েছে।","success");await loadAll()}
+
+function renderTournamentCardMaker(){
+ const select=$("cardTournament");if(!select)return;
+ const previous=select.value;
+ select.innerHTML='<option value="">Select Tournament</option>'+tournaments.map(t=>'<option value="'+esc(t.id)+'">'+esc(t.name)+' · '+esc(t.type||"Tournament")+'</option>').join("");
+ if(tournaments.some(t=>String(t.id)===String(previous)))select.value=previous;
+ if(me){const p=players.find(x=>String(x.id)===String(me.id))||{};
+  if(!$("cardPlayerName").value)$("cardPlayerName").value=p.display_name||"";
+  if(!$("cardPlayerDevice").value)$("cardPlayerDevice").value=p.device||"";
+  if(!$("cardPlayerEid").value)$("cardPlayerEid").value=p.efootball_id||"";
+  if(!$("cardPlayerClub").value)$("cardPlayerClub").value=p.club_name||"";
+ }
+ const box=$("myTournamentCards");
+ if(box)box.innerHTML=myTournamentRegs.map(r=>'<div class="item"><div class="grow"><b>'+esc(r.tournament?.name||"Tournament")+'</b><small>'+esc(r.tournament?.type||"Tournament")+' · '+esc(r.status||"pending")+' · '+new Date(r.created_at).toLocaleDateString()+'</small></div><button class="btn light" onclick="viewSavedTournamentCard(\''+r.tournament_id+'\')">View Card</button></div>').join("")||'<div class="empty">এখনো কোনো Tournament-এ Registration করা হয়নি।</div>';
+}
+async function registerTournamentCard(){
+ if(!me)return openAuth();
+ const tournamentId=$("cardTournament").value,name=$("cardPlayerName").value.trim(),device=$("cardPlayerDevice").value.trim(),eid=$("cardPlayerEid").value.trim(),club=$("cardPlayerClub").value.trim(),file=$("cardPlayerPhoto").files?.[0];
+ if(!tournamentId||!name||!device||!eid||!club||!file)return msg("Tournament, Photo, Name, Device, User ID ও Club Name—সব তথ্য দিতে হবে।","error");
+ if(!["image/png","image/jpeg","image/webp"].includes(file.type))return msg("শুধু JPG, PNG বা WEBP Photo দিন।","error");
+ if(file.size>5*1024*1024)return msg("Player Photo সর্বোচ্চ 5MB হতে পারবে।","error");
+ const tournament=tournaments.find(t=>String(t.id)===String(tournamentId));if(!tournament)return msg("Tournament পাওয়া যায়নি।","error");
+ const button=$("cardRegisterButton");if(button){button.disabled=true;button.textContent="Registration হচ্ছে...";}
+ try{
+  const ext=(file.name.split(".").pop()||"jpg").toLowerCase(),path=me.id+"/tournament-card-"+Date.now()+"."+ext;
+  const up=await db.storage.from("avatars").upload(path,file,{upsert:false,contentType:file.type,cacheControl:"3600"});if(up.error)throw up.error;
+  const photoUrl=db.storage.from("avatars").getPublicUrl(path).data?.publicUrl;if(!photoUrl)throw new Error("Player Photo URL তৈরি হয়নি।");
+  const prof=await db.from("profiles").upsert({id:me.id,display_name:name,efootball_id:eid,device:device,club_name:club,avatar_url:photoUrl});if(prof.error)throw prof.error;
+  const chk=await db.from("tournament_participants").select("id").eq("tournament_id",tournamentId).eq("profile_id",me.id).maybeSingle();if(chk.error)throw chk.error;
+  if(!chk.data){const ins=await db.from("tournament_participants").insert({tournament_id:tournamentId,profile_id:me.id,status:"pending"});if(ins.error)throw ins.error;}
+  currentTournamentCard={tournament:tournament,display_name:name,device:device,efootball_id:eid,club_name:club,avatar_url:photoUrl};
+  await loadAll();await showTournamentCard(currentTournamentCard);
+  msg(chk.data?"Player details updated. Card ready!":"Tournament Registration successful. Player Card তৈরি হয়েছে।","success");
+ }catch(error){console.error(error);msg("Registration হয়নি: "+(error.message||"Unknown error"),"error");}
+ finally{if(button){button.disabled=false;button.textContent="Register & Create Player Card";}}
+}
+function loadCardPhoto(url){return new Promise(resolve=>{const img=new Image();img.crossOrigin="anonymous";img.onload=()=>resolve(img);img.onerror=()=>resolve(null);img.src=url;});}
+async function createTournamentCardCanvas(data){
+ const canvas=document.createElement("canvas");canvas.width=1200;canvas.height=700;const x=canvas.getContext("2d"),bg=x.createLinearGradient(0,0,1200,700);
+ bg.addColorStop(0,"#174b32");bg.addColorStop(.62,"#236641");bg.addColorStop(1,"#795238");x.fillStyle=bg;x.fillRect(0,0,1200,700);
+ x.fillStyle="rgba(255,255,255,.08)";x.beginPath();x.arc(1120,80,260,0,Math.PI*2);x.fill();x.fillStyle="#d5a638";x.fillRect(0,0,1200,14);
+ x.fillStyle="#fff";x.font="bold 34px Arial";x.fillText("ANCESTOR OF SYLHET",60,82);x.fillStyle="#f2d17a";x.font="bold 23px Arial";x.fillText("OFFICIAL TOURNAMENT REGISTRATION",60,122);
+ x.fillStyle="#fff";x.font="bold 48px Arial";x.fillText(String(data.tournament?.name||"TOURNAMENT").slice(0,30),60,202);x.fillStyle="#f2d17a";x.font="bold 25px Arial";x.fillText("PLAYER REGISTRATION CARD",60,248);
+ x.fillStyle="rgba(255,255,255,.12)";x.fillRect(55,285,1090,330);const photo=await loadCardPhoto(data.avatar_url);
+ if(photo){x.save();x.beginPath();x.roundRect(90,330,270,270,22);x.clip();const scale=Math.max(270/photo.width,270/photo.height),w=photo.width*scale,h=photo.height*scale;x.drawImage(photo,90+(270-w)/2,330+(270-h)/2,w,h);x.restore();}
+ else{x.fillStyle="#fff";x.font="bold 90px Arial";x.fillText(String(data.display_name||"P")[0].toUpperCase(),190,495);}
+ const left=410;x.fillStyle="#f2d17a";x.font="bold 20px Arial";x.fillText("PLAYER NAME",left,352);x.fillStyle="#fff";x.font="bold 40px Arial";x.fillText(String(data.display_name||"").slice(0,28),left,400);
+ [["DEVICE",data.device],["eFOOTBALL USER ID",data.efootball_id],["CLUB NAME",data.club_name]].forEach((d,i)=>{const y=465+i*58;x.fillStyle="#f2d17a";x.font="bold 17px Arial";x.fillText(d[0],left,y);x.fillStyle="#fff";x.font="bold 25px Arial";x.fillText(String(d[1]||"").slice(0,35),left+260,y);});
+ x.fillStyle="#fff";x.font="bold 20px Arial";x.fillText("AOS TOURNAMENT CENTER",60,665);x.fillStyle="#f2d17a";x.textAlign="right";x.fillText(String(data.tournament?.season||"PLAY • COMPETE • ACHIEVE"),1140,665);x.textAlign="left";return canvas;
+}
+async function showTournamentCard(data){currentTournamentCard=data;const box=$("tournamentCardResult"),img=$("tournamentCardPreview");if(!box||!img)return;const canvas=await createTournamentCardCanvas(data);img.src=canvas.toDataURL("image/png");box.classList.remove("hidden");}
+async function downloadTournamentCard(){if(!currentTournamentCard)return msg("আগে Registration করে Card তৈরি করুন।","error");const canvas=await createTournamentCardCanvas(currentTournamentCard),link=document.createElement("a");link.download="AOS-Tournament-Card.png";link.href=canvas.toDataURL("image/png");link.click();}
+async function shareTournamentCard(){
+ if(!currentTournamentCard)return msg("আগে Registration করে Card তৈরি করুন।","error");
+ const canvas=await createTournamentCardCanvas(currentTournamentCard),blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/png"));if(!blob)return msg("Card image তৈরি করা যায়নি।","error");
+ const file=new File([blob],"AOS-Tournament-Card.png",{type:"image/png"});
+ if(navigator.share&&navigator.canShare?.({files:[file]})){try{await navigator.share({title:"AOS Tournament Registration Card",text:currentTournamentCard.tournament?.name||"AOS Tournament",files:[file]});}catch(error){if(error.name!=="AbortError")msg("Share করা যায়নি। Download করে Share করুন।","error");}}
+ else{await downloadTournamentCard();msg("এই Browser-এ direct Share নেই। Card Download হয়েছে—এখন Share করতে পারবেন।","notice");}
+}
+async function viewSavedTournamentCard(tournamentId){
+ if(!me)return openAuth();const tournament=tournaments.find(t=>String(t.id)===String(tournamentId)),p=players.find(x=>String(x.id)===String(me.id));
+ if(!tournament||!p?.display_name||!p?.device||!p?.efootball_id||!p?.club_name||!p?.avatar_url)return msg("Card তৈরি করতে Profile-এর সব তথ্য ও Photo সম্পূর্ণ থাকতে হবে।","error");
+ await showTournamentCard({tournament:tournament,display_name:p.display_name,device:p.device,efootball_id:p.efootball_id,club_name:p.club_name,avatar_url:p.avatar_url});$("tournamentCardResult").scrollIntoView({behavior:"smooth",block:"start"});
+}
+
 async function createTournament(){if(!requireAdmin())return;let x={name:$("tName").value.trim(),type:$("tType").value,season:$("tSeason").value,entry_fee:Number($("tFee").value||0),max_participants:Number($("tMax").value||16),status:$("tStatus").value,created_by:me.id};if(!x.name)return msg("Tournament name দিন।","error");let r=await db.from("tournaments").insert(x);if(r.error)return msg(r.error.message,"error");msg("Tournament তৈরি হয়েছে।","success");await loadAll()}
 async function createTeam() {
   if (!requireAdmin()) return;
@@ -1961,6 +2032,7 @@ async function deleteManagementMember(id){
 
 // Main Render Function
 function render() {
+  renderTournamentCardMaker();
   renderPublicPlayers();
   renderAwards();
   renderManagement();
