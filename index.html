@@ -157,7 +157,26 @@ header{height:66px;background:#fff;border-bottom:1px solid var(--line);display:f
 
 <section id="playersDirectory" class="page hidden"><div class="head"><h2>Registered Players</h2><span class="pill" id="registeredPlayerCount">0 Players</span></div><p class="muted">Website-এ নিবন্ধিত সকল Player-এর Public Profile দেখুন।</p><input id="playerSearch" placeholder="নাম বা eFootball ID দিয়ে খুঁজুন" oninput="renderPublicPlayers()" style="width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;margin:8px 0 14px"><div id="publicPlayerList" class="grid"></div></section>
 <section id="awards" class="page hidden"><div class="head"><h2>AOS Awards & Player Statistics</h2><span class="pill gold">Live Stats</span></div><p class="muted">Match-wise Player Stats আপডেট হলে Award Ranking স্বয়ংক্রিয়ভাবে হিসাব হবে।</p><div class="tabs" id="awardTabs"><button class="tab active" onclick="setAwardTab('motm',this)">Man of the Match</button><button class="tab" onclick="setAwardTab('tournament',this)">Tournament</button><button class="tab" onclick="setAwardTab('week',this)">Week</button><button class="tab" onclick="setAwardTab('month',this)">Month</button><button class="tab" onclick="setAwardTab('season',this)">Season</button><button class="tab" onclick="setAwardTab('year',this)">Year</button></div><div id="awardList" class="grid"></div></section>
-<section id="management" class="page hidden"><div class="head"><h2>Admin & Management</h2></div><p class="muted">AOS পরিচালনা ও ব্যবস্থাপনার দায়িত্বে থাকা সদস্যদের পরিচিতি।</p><div id="managementList" class="grid"></div></section>
+<section id="management" class="page hidden"><div class="head"><h2>Admin & Management</h2></div><p class="muted">AOS পরিচালনা ও ব্যবস্থাপনার দায়িত্বে থাকা সদস্যদের পরিচিতি।</p><div id="managementList" class="grid"></div>
+<div id="managementAdminPanel" class="card hidden" style="margin-top:18px">
+  <div class="head"><h2>Management Control Panel</h2><span class="pill gold">Main Admin Only</span></div>
+  <p class="muted">এখান থেকে Public Admin & Management পেজের সদস্য যোগ, সম্পাদনা, প্রকাশ বা মুছে ফেলতে পারবেন।</p>
+  <div class="card" style="background:#f7f9fd">
+    <h3 id="managementFormTitle">Add Management Member</h3>
+    <div class="form">
+      <div class="field"><label>Full Name *</label><input id="managementName" placeholder="Member name"></div>
+      <div class="field"><label>Position *</label><input id="managementPosition" placeholder="President / Admin / Moderator"></div>
+      <div class="field"><label>Department</label><input id="managementDepartment" placeholder="Tournament / Operations / Media"></div>
+      <div class="field"><label>Photo URL</label><input id="managementPhoto" type="url" placeholder="https://..."></div>
+      <div class="field full"><label>Responsibilities / Introduction</label><textarea id="managementResponsibilities" rows="3" placeholder="সদস্যের দায়িত্ব ও পরিচিতি"></textarea></div>
+      <div class="field"><label>Display Order</label><input id="managementOrder" type="number" value="0"></div>
+      <div class="field"><label><input id="managementActive" type="checkbox" checked style="width:auto"> Public page-এ দেখাবে</label></div>
+      <div class="field full row"><button id="managementSaveButton" class="btn green" onclick="saveManagementMember()">Save Member</button><button class="btn light" onclick="resetManagementForm()">Clear Form</button></div>
+    </div>
+  </div>
+  <h3 style="margin-top:18px">Manage Members</h3>
+  <div id="managementAdminList" class="list"></div>
+</div></section>
 \n<section id="rankings" class="page hidden"><div class="head"><h2>Player Rankings</h2></div><div id="playerList" class="list"></div></section>
 <section id="champions" class="page hidden"><div class="head"><h2>Champions Hall</h2></div><div id="champList" class="grid"></div></section>
 <section id="admin" class="page hidden"><div class="head"><h2>Admin Control</h2><span id="roleBadge" class="pill">Protected</span></div><div id="adminGate" class="notice">Admin access requires an authenticated account with admin or moderator role.</div><div id="adminArea" class="hidden">
@@ -332,5 +351,5 @@ header{height:66px;background:#fff;border-bottom:1px solid var(--line);display:f
   <button data-id="more" onclick="go('more')">••• More</button>
 </nav>
 <div id="authModal" class="hidden" style="position:fixed;inset:0;background:#0b1730aa;z-index:20;display:grid;place-items:center;padding:16px"><div class="card" style="width:min(440px,100%)"><div class="row"><h2 id="authTitle">Login</h2><button class="btn light" onclick="closeAuth()">✕</button></div><div class="field"><label>Email</label><input id="authEmail" type="email"></div><div class="field" style="margin-top:10px"><label>Password</label><input id="authPass" type="password"></div><div class="row" style="margin-top:14px"><button class="btn" onclick="doAuth('login')">Login</button><button class="btn light" onclick="doAuth('signup')">Create Account</button></div><p class="muted">নতুন Account তৈরি করলে Email verification প্রয়োজন হতে পারে।</p></div></div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="config.js"></script><script src="app.js?v=20261119-5"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="config.js"></script><script src="app.js?v=20261119-6"></script>
 </body></html>
