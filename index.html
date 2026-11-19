@@ -154,7 +154,11 @@ header{height:66px;background:#fff;border-bottom:1px solid var(--line);display:f
   <div id="bracketView" class="bracket"></div>
 </section>
 
-<section id="rankings" class="page hidden"><div class="head"><h2>Player Rankings</h2></div><div id="playerList" class="list"></div></section>
+
+<section id="playersDirectory" class="page hidden"><div class="head"><h2>Registered Players</h2><span class="pill" id="registeredPlayerCount">0 Players</span></div><p class="muted">Website-এ নিবন্ধিত সকল Player-এর Public Profile দেখুন।</p><input id="playerSearch" placeholder="নাম বা eFootball ID দিয়ে খুঁজুন" oninput="renderPublicPlayers()" style="width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;margin:8px 0 14px"><div id="publicPlayerList" class="grid"></div></section>
+<section id="awards" class="page hidden"><div class="head"><h2>AOS Awards & Player Statistics</h2><span class="pill gold">Live Stats</span></div><p class="muted">Match-wise Player Stats আপডেট হলে Award Ranking স্বয়ংক্রিয়ভাবে হিসাব হবে।</p><div class="tabs" id="awardTabs"><button class="tab active" onclick="setAwardTab('motm',this)">Man of the Match</button><button class="tab" onclick="setAwardTab('tournament',this)">Tournament</button><button class="tab" onclick="setAwardTab('week',this)">Week</button><button class="tab" onclick="setAwardTab('month',this)">Month</button><button class="tab" onclick="setAwardTab('season',this)">Season</button><button class="tab" onclick="setAwardTab('year',this)">Year</button></div><div id="awardList" class="grid"></div></section>
+<section id="management" class="page hidden"><div class="head"><h2>Admin & Management</h2></div><p class="muted">AOS পরিচালনা ও ব্যবস্থাপনার দায়িত্বে থাকা সদস্যদের পরিচিতি।</p><div id="managementList" class="grid"></div></section>
+\n<section id="rankings" class="page hidden"><div class="head"><h2>Player Rankings</h2></div><div id="playerList" class="list"></div></section>
 <section id="champions" class="page hidden"><div class="head"><h2>Champions Hall</h2></div><div id="champList" class="grid"></div></section>
 <section id="admin" class="page hidden"><div class="head"><h2>Admin Control</h2><span id="roleBadge" class="pill">Protected</span></div><div id="adminGate" class="notice">Admin access requires an authenticated account with admin or moderator role.</div><div id="adminArea" class="hidden">
 <div class="card"><h3>Create Tournament</h3><div class="form"><div class="field"><label>Name</label><input id="tName"></div><div class="field"><label>Type</label><select id="tType"><option>League</option><option>Auction</option><option>Solo</option><option>Duo</option><option>Team</option><option>Knockout</option></select></div><div class="field"><label>Season</label><input id="tSeason" value="Season 1"></div><div class="field"><label>Entry Fee</label><input id="tFee" type="number" value="0"></div><div class="field"><label>Max Participants</label><input id="tMax" type="number" value="16"></div><div class="field"><label>Status</label><select id="tStatus"><option>Registration Open</option><option>Upcoming</option><option>Live</option><option>Completed</option></select></div><div class="field full"><button class="btn green" onclick="createTournament()">Create Tournament</button></div></div></div>
@@ -273,7 +277,11 @@ header{height:66px;background:#fff;border-bottom:1px solid var(--line);display:f
   <div class="head"><h2>More</h2></div>
   <div class="list">
 
- <div class="item" onclick="go('profile')">
+ 
+    <div class="item" onclick="go('playersDirectory')"><div class="avatar">👥</div><div class="grow"><b>Registered Players</b><small>All public player profiles</small></div>›</div>
+    <div class="item" onclick="go('awards')"><div class="avatar">🏅</div><div class="grow"><b>Awards & Statistics</b><small>Player awards and downloadable cards</small></div>›</div>
+    <div class="item" onclick="go('management')"><div class="avatar">🛡</div><div class="grow"><b>Admin & Management</b><small>Meet the AOS management team</small></div>›</div>
+<div class="item" onclick="go('profile')">
   <div class="avatar">👤</div>
   <div class="grow">
     <b>My Dashboard</b>
