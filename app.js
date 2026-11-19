@@ -17,7 +17,7 @@ let selectedTournamentId="";
 let tournamentDetailTab="overview";
 let selectedTournamentTeams=[];
 let memberTournamentId="";
-let memberTeamId="";let auctionTournamentId = "";let auctionTournamentSettings=null,auctionTeamSettings=[],auctionRoom=null,auctionChatMessages=[],auctionRealtimeChannel=null,auctionCallTimer=null,auctionCallAdvancing=false,auctionLastAnnouncedState="";
+let memberTeamId="";let auctionTournamentId = "";let auctionPlayerFixtures=[],auctionPlayerSubmissions=[];let auctionTournamentSettings=null,auctionTeamSettings=[],auctionRoom=null,auctionChatMessages=[],auctionRealtimeChannel=null,auctionCallTimer=null,auctionCallAdvancing=false,auctionLastAnnouncedState="";
 const $=id=>document.getElementById(id), msg=(s,type="notice")=>{$("globalMsg").innerHTML=`<div class="notice ${type}">${esc(s)}</div>`;setTimeout(()=>{$("globalMsg").innerHTML=""},6500)};
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function toggleAOSSidebar(force){const side=$("aosSidebar"),shade=$("sidebarShade");if(!side||!shade)return;const open=typeof force==="boolean"?force:!side.classList.contains("open");side.classList.toggle("open",open);shade.classList.toggle("show",open);$("sidebarMenuBtn")?.setAttribute("aria-expanded",String(open));}function go(id){document.querySelectorAll(".page").forEach(x=>x.classList.add("hidden"));const page=$(id);if(!page)return;page.classList.remove("hidden");document.querySelectorAll(".bottom button,.top-nav button,.sidebar-link").forEach(x=>x.classList.toggle("active",x.dataset.id===id));toggleAOSSidebar(false);render();window.scrollTo(0,0)}
@@ -378,6 +378,8 @@ function setupAuctionArenaTournamentSelect() {
     publicPanel.style.marginBottom = "14px";
     panel.insertAdjacentElement("afterend", publicPanel);
   }
+  let matchPanel=$("auctionMatchCenter");
+  if(!matchPanel){matchPanel=document.createElement("div");matchPanel.id="auctionMatchCenter";matchPanel.className="card";matchPanel.style.marginBottom="14px";publicPanel.insertAdjacentElement("afterend",matchPanel);}
   let chatPanel = $("auctionChatPanel");
   if (!chatPanel) {
     chatPanel = document.createElement("div");
@@ -444,6 +446,7 @@ async function loadAuctionTeams(tournamentId, shouldRender=true) {
     auctionTeams = (data || []).map(row => row.team).filter(team => team && team.id);
   }
   await loadAuctionArenaData(tournamentId);
+  await loadAuctionPlayerFixtures(tournamentId);
   if (shouldRender) render();
 }
 
@@ -723,7 +726,7 @@ function renderAuctionChat() {
 function renderAuctionControlPanel() {
   const panel=$("auctionControlPanel"),publicPanel=$("auctionTeamsPublic");
   if(!panel||!publicPanel)return;
-  if(!auctionTournamentId){panel.innerHTML='<div class="empty">Auction Tournament নির্বাচন করলে এখানে Live Auction Control ও Team Budget দেখা যাবে।</div>';publicPanel.innerHTML='<h3>Teams & Squads</h3><div class="empty">Tournament নির্বাচন করুন।</div>';renderAuctionChat();return;}
+  if(!auctionTournamentId){$("auctionMatchCenter").innerHTML='<h3>Team Squads & Player Fixtures</h3><div class="empty">Tournament নির্বাচন করুন।</div>';panel.innerHTML='<div class="empty">Auction Tournament নির্বাচন করলে এখানে Live Auction Control ও Team Budget দেখা যাবে।</div>';publicPanel.innerHTML='<h3>Teams & Squads</h3><div class="empty">Tournament নির্বাচন করুন।</div>';renderAuctionChat();return;}
   const isMainAdmin=String(role).toLowerCase()==="admin";
   const staff=["admin","moderator"].includes(String(role).toLowerCase());
   const settings=auctionTournamentSettings||{base_price:100,initial_budget:10000,min_increment:100,max_squad_size:10};
@@ -745,8 +748,100 @@ function renderAuctionControlPanel() {
   const soldRanking=auctionPlayers.filter(p=>String(p.tournament_id)===String(auctionTournamentId)&&p.status==="sold").sort((a,b)=>Number(b.sold_price||0)-Number(a.sold_price||0)).map((p,i)=>{const team=auctionTeams.find(t=>String(t.id)===String(p.team_id));return '<div class="item"><b>#'+(i+1)+'</b>'+(p.profile?.avatar_url?'<img src="'+esc(p.profile.avatar_url)+'" style="width:42px;height:42px;object-fit:cover;border-radius:50%">':'<div class="avatar">👤</div>')+'<div class="grow"><b>'+esc(p.profile?.display_name||"Player")+'</b><small>'+esc(team?.name||"Team")+' · Auction Serial #'+(p.serial_no||"—")+'</small></div><b>'+Number(p.sold_price||0).toLocaleString()+' pts</b></div>';}).join("");
   const budgetRank=[...auctionTeamSettings].sort((a,b)=>Number(b.budget_remaining||0)-Number(a.budget_remaining||0)).map((x,i)=>'<div class="item"><b>#'+(i+1)+'</b><div class="grow"><b>'+esc(x.team?.name||"Team")+'</b><small>Budget remaining</small></div><b>'+Number(x.budget_remaining||0).toLocaleString()+' pts</b></div>').join("");
   publicPanel.innerHTML='<div class="head" style="margin:0 0 12px"><h3>Teams, Budgets & Squads</h3><span class="pill">'+auctionTeams.length+' Teams</span></div>'+(budgetCards||'<div class="empty">এই Tournament-এ Team নেই।</div>')+'<div class="head"><h3>Player Auction Ranking</h3><span class="pill gold">Highest Sold Price</span></div>'+(soldRanking||'<div class="empty">এখনো কোনো Player Sold হয়নি।</div>')+'<div class="head"><h3>Team Budget Ranking</h3></div>'+(budgetRank||'<div class="empty">Team Budget এখনো Configure করা হয়নি।</div>');
+  renderAuctionMatchCenter();
   renderAuctionChat();
   startAuctionCallTicker();
+}
+
+
+async function loadAuctionPlayerFixtures(tournamentId){
+  auctionPlayerFixtures=[];auctionPlayerSubmissions=[];
+  if(!tournamentId)return;
+  const [f,s]=await Promise.all([
+    db.from("auction_player_fixtures").select("*").eq("tournament_id",tournamentId).order("round_no").order("created_at"),
+    db.from("auction_player_result_submissions").select("*").in("fixture_id",(auctionPlayerFixtures||[]).map(x=>x.id))
+  ]);
+  if(f.error){console.warn("Auction player fixtures:",f.error.message);return;}
+  auctionPlayerFixtures=f.data||[];
+  if(auctionPlayerFixtures.length){
+    const sub=await db.from("auction_player_result_submissions").select("*").in("fixture_id",auctionPlayerFixtures.map(x=>x.id)).order("created_at",{ascending:false});
+    if(!sub.error)auctionPlayerSubmissions=sub.data||[];
+  }
+}
+function createAuctionPlayerFixture(){
+  if(String(role).toLowerCase()!=="admin")return msg("শুধু Main Admin Fixture Draw করতে পারবেন।","error");
+  const homeTeam=$("apfHomeTeam")?.value,awayTeam=$("apfAwayTeam")?.value;
+  const homePlayer=$("apfHomePlayer")?.value,awayPlayer=$("apfAwayPlayer")?.value;
+  const round=Number($("apfRound")?.value||1);
+  if(!homeTeam||!awayTeam||!homePlayer||!awayPlayer||homeTeam===awayTeam)return msg("দুই Team ও দুই Player নির্বাচন করুন।","error");
+  db.rpc("aos_create_auction_player_fixture",{p_tournament_id:auctionTournamentId,p_home_team_id:homeTeam,p_home_player_id:homePlayer,p_away_team_id:awayTeam,p_away_player_id:awayPlayer,p_round_no:round})
+  .then(async({error})=>{if(error)return msg(error.message,"error");await loadAuctionPlayerFixtures(auctionTournamentId);renderAuctionMatchCenter();msg("Player Fixture Draw সম্পন্ন হয়েছে।","success");});
+}
+function submitAuctionPlayerMatchResult(fixtureId){
+  if(!me)return openAuth();
+  const hs=Number($("apf-h-"+fixtureId)?.value),as=Number($("apf-a-"+fixtureId)?.value),note=$("apf-note-"+fixtureId)?.value||"";
+  if(!Number.isInteger(hs)||!Number.isInteger(as)||hs<0||as<0)return msg("সঠিক Score দিন।","error");
+  db.rpc("aos_submit_auction_player_result",{p_fixture_id:fixtureId,p_home_score:hs,p_away_score:as,p_note:note})
+  .then(async({error})=>{if(error)return msg(error.message,"error");await loadAuctionPlayerFixtures(auctionTournamentId);renderAuctionMatchCenter();msg("Result Admin Review-এর জন্য জমা হয়েছে।","success");});
+}
+function reviewAuctionPlayerMatchResult(fixtureId,approve){
+  if(String(role).toLowerCase()!=="admin")return msg("শুধু Main Admin Result Confirm করতে পারবেন।","error");
+  const hs=Number($("apf-review-h-"+fixtureId)?.value),as=Number($("apf-review-a-"+fixtureId)?.value);
+  if(approve&&(!Number.isInteger(hs)||!Number.isInteger(as)||hs<0||as<0))return msg("সঠিক Final Score দিন।","error");
+  if(!confirm(approve?"এই Score Confirm করে Result Card তৈরি করবেন?":"এই Result Submission Reject করবেন?"))return;
+  db.rpc("aos_review_auction_player_result",{p_fixture_id:fixtureId,p_home_score:approve?hs:0,p_away_score:approve?as:0,p_approve:approve})
+  .then(async({error})=>{if(error)return msg(error.message,"error");await loadAuctionPlayerFixtures(auctionTournamentId);renderAuctionMatchCenter();msg(approve?"Result Confirm হয়েছে।":"Result Reject হয়েছে।","success");});
+}
+function auctionMatchCardCanvas(fixtureId){
+  const f=auctionPlayerFixtures.find(x=>x.id===fixtureId);if(!f||f.status!=="completed")return Promise.reject(new Error("Confirmed Result পাওয়া যায়নি"));
+  const hp=players.find(x=>x.id===f.home_player_id)||{},ap=players.find(x=>x.id===f.away_player_id)||{};
+  const ht=auctionTeams.find(x=>x.id===f.home_team_id)||{},at=auctionTeams.find(x=>x.id===f.away_team_id)||{};
+  const c=document.createElement("canvas");c.width=1200;c.height=630;const ctx=c.getContext("2d");
+  const g=ctx.createLinearGradient(0,0,1200,630);g.addColorStop(0,"#102d22");g.addColorStop(.55,"#1b5138");g.addColorStop(1,"#112b24");ctx.fillStyle=g;ctx.fillRect(0,0,1200,630);
+  ctx.strokeStyle="#d8b85a";ctx.lineWidth=5;ctx.strokeRect(24,24,1152,582);
+  ctx.fillStyle="#e8cd79";ctx.font="bold 25px Arial";ctx.textAlign="center";ctx.fillText("ANCESTOR OF SYLHET  •  AUCTION PLAYER LEAGUE",600,82);
+  ctx.fillStyle="#fff";ctx.font="bold 38px Arial";ctx.fillText("OFFICIAL MATCH RESULT",600,145);
+  ctx.fillStyle="#cde5d4";ctx.font="20px Arial";ctx.fillText("ROUND "+f.round_no+"  |  VERIFIED BY AOS ADMIN",600,184);
+  ctx.fillStyle="#fff";ctx.font="bold 31px Arial";ctx.textAlign="center";ctx.fillText(ht.name||"HOME TEAM",300,265);ctx.fillText(at.name||"AWAY TEAM",900,265);
+  ctx.fillStyle="#f6d66e";ctx.font="bold 82px Arial";ctx.fillText(String(f.home_score),440,390);ctx.fillText(":",600,390);ctx.fillText(String(f.away_score),760,390);
+  ctx.fillStyle="#fff";ctx.font="bold 23px Arial";ctx.fillText(hp.display_name||"Player",300,450);ctx.fillText(ap.display_name||"Player",900,450);
+  ctx.fillStyle="#d6e5da";ctx.font="18px Arial";ctx.fillText("POINTS  "+f.home_points,300,495);ctx.fillText("POINTS  "+f.away_points,900,495);
+  ctx.fillStyle="#f3d77e";ctx.font="bold 20px Arial";ctx.fillText("AOS OFFICIAL RESULT  •  ancestorsofsylhet",600,560);
+  return new Promise(resolve=>c.toBlob(b=>b?resolve(b):resolve(Promise.reject(new Error("Card তৈরি করা যায়নি"))),"image/png"));
+}
+async function downloadAuctionPlayerResultCard(id){
+  try{const blob=await auctionMatchCardCanvas(id);const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="AOS-Auction-Result-"+id.slice(0,8)+".png";a.click();setTimeout(()=>URL.revokeObjectURL(url),1500);}
+  catch(e){msg(e.message,"error");}
+}
+async function shareAuctionPlayerResultCard(id){
+  try{const blob=await auctionMatchCardCanvas(id),file=new File([blob],"AOS-Auction-Result.png",{type:"image/png"});if(navigator.canShare?.({files:[file]})&&navigator.share)await navigator.share({files:[file],title:"AOS Auction Match Result"});else{await downloadAuctionPlayerResultCard(id);msg("এই Browser-এ Direct Share নেই, Card Download হয়েছে।","notice");}}
+  catch(e){if(e.name!=="AbortError")msg(e.message,"error");}
+}
+function renderAuctionMatchCenter(){
+ const root=$("auctionMatchCenter");if(!root)return;
+ if(!auctionTournamentId){root.innerHTML='<div class="empty">Auction Tournament নির্বাচন করুন।</div>';return;}
+ const isAdmin=String(role).toLowerCase()==="admin";
+ const sold=auctionPlayers.filter(p=>String(p.tournament_id)===String(auctionTournamentId)&&p.status==="sold");
+ const squads=auctionTeams.map(t=>{const list=sold.filter(p=>String(p.team_id)===String(t.id));return '<details class="apf-squad"><summary>'+(t.logo_url?'<img src="'+esc(t.logo_url)+'">':'🏆')+' <b>'+esc(t.name)+'</b><span>'+list.length+'/10 Players</span></summary><div class="apf-squad-grid">'+(list.map(p=>'<div class="apf-player">'+(p.profile?.avatar_url?'<img src="'+esc(p.profile.avatar_url)+'">':'<span>👤</span>')+'<b>'+esc(p.profile?.display_name||"Player")+'</b><small>'+esc(p.profile?.efootball_id||"")+'</small></div>').join("")||'<small class="muted">Squad এখনো খালি।</small>')+'</div></details>';}).join("");
+ const teamOpts='<option value="">Select Team</option>'+auctionTeams.map(t=>'<option value="'+t.id+'">'+esc(t.name)+'</option>').join("");
+ const fixtures=auctionPlayerFixtures.map(f=>{
+  const hp=players.find(p=>p.id===f.home_player_id)||{},ap=players.find(p=>p.id===f.away_player_id)||{},ht=auctionTeams.find(t=>t.id===f.home_team_id)||{},at=auctionTeams.find(t=>t.id===f.away_team_id)||{};
+  const subs=auctionPlayerSubmissions.filter(s=>s.fixture_id===f.id);
+  const subHtml=subs.map(s=>'<div class="apf-submission"><b>'+esc(auctionTeams.find(t=>t.id===s.team_id)?.name||"Team")+'</b> submitted <strong>'+s.home_score+' - '+s.away_score+'</strong> <span>'+esc(s.status.toUpperCase())+'</span><small>'+esc(s.note||"")+'</small></div>').join("");
+  const isMember=sold.some(p=>p.profile_id===me?.id&&(p.team_id===f.home_team_id||p.team_id===f.away_team_id));
+  const entry=f.status!=="completed"&&isMember?'<div class="apf-submit"><div><label>Home Score</label><input id="apf-h-'+f.id+'" type="number" min="0" value="'+(subs[0]?.home_score??"")+'"></div><div><label>Away Score</label><input id="apf-a-'+f.id+'" type="number" min="0" value="'+(subs[0]?.away_score??"")+'"></div><div class="full"><input id="apf-note-'+f.id+'" placeholder="Optional match note" maxlength="300"></div><button class="btn green" onclick="submitAuctionPlayerMatchResult(\''+f.id+'\')">Submit Result</button></div>':'';
+  const review=f.status!=="completed"&&isAdmin&&subs.length?'<div class="apf-review"><b>ADMIN REVIEW · Correct Score if needed</b><div><input id="apf-review-h-'+f.id+'" type="number" min="0" value="'+subs[0].home_score+'"><span>:</span><input id="apf-review-a-'+f.id+'" type="number" min="0" value="'+subs[0].away_score+'"></div><button class="btn green" onclick="reviewAuctionPlayerMatchResult(\''+f.id+'\',true)">Approve & Confirm</button><button class="btn light" onclick="reviewAuctionPlayerMatchResult(\''+f.id+'\',false)">Reject</button></div>':'';
+  const card=f.status==="completed"?'<div class="apf-card-actions"><button class="btn green" onclick="downloadAuctionPlayerResultCard(\''+f.id+'\')">Download Result Card</button><button class="btn light" onclick="shareAuctionPlayerResultCard(\''+f.id+'\')">Share Card</button></div>':'';
+  return '<article class="apf-fixture"><div class="apf-fixture-top"><span>ROUND '+f.round_no+'</span><b class="apf-status '+f.status+'">'+f.status.replace("_"," ").toUpperCase()+'</b></div><div class="apf-versus"><div><b>'+esc(ht.name||"Team")+'</b><small>'+esc(hp.display_name||"Player")+'</small></div><strong>'+(f.home_score??"—")+' : '+(f.away_score??"—")+'</strong><div><b>'+esc(at.name||"Team")+'</b><small>'+esc(ap.display_name||"Player")+'</small></div></div>'+subHtml+entry+review+card+'</article>';
+ }).join("");
+ const draw=isAdmin?'<div class="apf-draw"><div class="apf-heading"><h3>Admin Fixture Draw</h3><span>PLAYER VS PLAYER</span></div><div class="apf-draw-grid"><div><label>Home Team</label><select id="apfHomeTeam" onchange="updateAuctionFixturePlayerOptions()">'+teamOpts+'</select></div><div><label>Away Team</label><select id="apfAwayTeam" onchange="updateAuctionFixturePlayerOptions()">'+teamOpts+'</select></div><div><label>Home Player</label><select id="apfHomePlayer"><option value="">Select Team First</option></select></div><div><label>Away Player</label><select id="apfAwayPlayer"><option value="">Select Team First</option></select></div><div><label>Round</label><input id="apfRound" type="number" min="1" value="1"></div><button class="btn green" onclick="createAuctionPlayerFixture()">Create Fixture</button></div></div>':'';
+ root.innerHTML='<div class="apf-heading"><div><h2>Team Squads & Player League</h2><p>প্রতিটি Auction Team-এর Squad, Player Fixture ও Verified Result</p></div><span class="pill gold">'+auctionPlayerFixtures.length+' Fixtures</span></div><div class="apf-squads">'+(squads||'<div class="empty">Team পাওয়া যায়নি।</div>')+'</div>'+draw+'<div class="apf-heading" style="margin-top:20px"><h3>Player vs Player Fixtures</h3><span class="pill">'+auctionPlayerFixtures.filter(f=>f.status==="completed").length+' Completed</span></div><div class="apf-fixtures">'+(fixtures||'<div class="empty">Admin এখনো Player Fixture Draw করেননি।</div>')+'</div>';
+ if(isAdmin&&auctionTeams.length)updateAuctionFixturePlayerOptions();
+}
+function updateAuctionFixturePlayerOptions(){
+ const h=$("apfHomeTeam")?.value,a=$("apfAwayTeam")?.value;
+ const sold=auctionPlayers.filter(p=>String(p.tournament_id)===String(auctionTournamentId)&&p.status==="sold");
+ for(const [id,team] of [["apfHomePlayer",h],["apfAwayPlayer",a]]){const s=$(id);if(!s)continue;const rows=sold.filter(p=>String(p.team_id)===String(team));s.innerHTML='<option value="">Select Player</option>'+rows.map(p=>'<option value="'+p.profile_id+'">'+esc(p.profile?.display_name||"Player")+'</option>').join("");}
 }
 
 function setupAuctionRealtime() {
