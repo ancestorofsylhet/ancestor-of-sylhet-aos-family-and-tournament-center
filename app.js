@@ -102,12 +102,11 @@ function requireAdmin(){if(!me||!["admin","moderator"].includes(role)){msg("এ�
 function requireMainAdmin(){if(!me||String(role).toLowerCase()!=="admin"){msg("Management Control Panel শুধু Main Admin ব্যবহার করতে পারবেন।","error");return false}return true}
 
 function loadSiteLogo(){
- const img=$("siteLogo"),fallback=$("siteLogoFallback");
- if(!img||!fallback||!db)return;
- const url=db.storage.from("site-assets").getPublicUrl("branding/aos-logo").data.publicUrl;
- img.onload=()=>{img.classList.remove("hidden");fallback.classList.add("hidden");};
- img.onerror=()=>{img.classList.add("hidden");fallback.classList.remove("hidden");};
- img.src=url+"?v="+Date.now();
+ const img=$("siteLogo"),fallback=$("siteLogoFallback"),heroImg=$("heroSiteLogo"),heroFallback=$("heroLogoFallback");
+ if(!db)return;
+ const url=db.storage.from("site-assets").getPublicUrl("branding/aos-logo").data.publicUrl+"?v="+Date.now();
+ if(img&&fallback){img.onload=()=>{img.classList.remove("hidden");fallback.classList.add("hidden");};img.onerror=()=>{img.classList.add("hidden");fallback.classList.remove("hidden");};img.src=url;}
+ if(heroImg&&heroFallback){heroImg.onload=()=>{heroImg.classList.remove("hidden");heroFallback.classList.add("hidden");};heroImg.onerror=()=>{heroImg.classList.add("hidden");heroFallback.classList.remove("hidden");};heroImg.src=url;}
 }
 function previewSiteLogo(input){
  const file=input?.files?.[0],preview=$("siteLogoPreview");
