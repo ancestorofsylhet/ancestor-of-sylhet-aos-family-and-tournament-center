@@ -38,7 +38,7 @@ async function uploadAOSMemory(){
  if(!title||!file)return msg("স্মৃতির নাম ও Photo/Video নির্বাচন করুন।","error");
  const image=file.type.startsWith("image/"),video=file.type.startsWith("video/");
  if(!image&&!video)return msg("শুধু JPG, PNG, WEBP, GIF, MP4, WEBM বা MOV ফাইল দেওয়া যাবে।","error");
- if(file.size>(image?15:100)*1024*1024)return msg(image?"ছবির সাইজ 15MB-এর মধ্যে রাখুন।":"ভিডিওর সাইজ 100MB-এর মধ্যে রাখুন।","error");
+ if(file.size>(image?15:500)*1024*1024)return msg(image?"ছবির সাইজ 15MB-এর মধ্যে রাখুন।":"ভিডিওর সাইজ 500MB-এর মধ্যে রাখুন।","error");
  const btn=$("memoryUploadBtn");btn.disabled=true;btn.textContent="Uploading...";
  const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,"_"),path=Date.now()+"-"+crypto.randomUUID()+"-"+safe;
  const up=await db.storage.from("aos-memories").upload(path,file,{upsert:false,contentType:file.type});
