@@ -1,5 +1,5 @@
-const CACHE_NAME = "aos-tournament-center-v2";
-const APP_SHELL = ["./", "./index.html", "./manifest.webmanifest", "./pwa.js"];
+const CACHE_NAME = "aos-tournament-center-v3";
+const APP_SHELL = ["./", "./index.html", "./manifest.webmanifest?v=3", "./pwa.js?v=3"];
 
 self.addEventListener("install", event => {
   event.waitUntil(
