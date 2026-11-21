@@ -3,8 +3,8 @@
   "short_name": "AOS Center",
   "id": "./",
   "description": "AOS Tournament Center — Play, Compete, Unite.",
-  "start_url": "./?source=pwa",
-  "scope": "./",
+  "start_url": "/ancestor-of-sylhet-aos-family-and-tournament-center/?source=pwa",
+  "scope": "/ancestor-of-sylhet-aos-family-and-tournament-center/",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#ffffff",
@@ -15,12 +15,7 @@
       "sizes": "1536x1536",
       "type": "image/jpeg",
       "purpose": "any"
-    },
-    {
-      "src": "https://bzjecjlevbcrjgwkbadi.supabase.co/storage/v1/object/public/site-assets/branding/aos-logo",
-      "sizes": "1536x1536",
-      "type": "image/jpeg",
-      "purpose": "maskable"
     }
-  ]
+  ],
+  "prefer_related_applications": false
 }
