@@ -439,6 +439,13 @@ header{gap:18px;height:78px;padding-left:max(18px,calc((100% - 1320px)/2));paddi
 @media(max-width:1000px){.aos-live-layout{grid-template-columns:minmax(0,1fr)}.aos-live-right{grid-template-columns:repeat(2,minmax(0,1fr))}.aos-live-lower{grid-template-columns:repeat(2,minmax(0,1fr))}.aos-live-lower>section:first-child{grid-column:1/-1}}
 @media(max-width:650px){.aos-live-dashboard{padding:10px}.aos-live-player{grid-template-columns:110px minmax(0,1fr);gap:10px;padding:12px}.aos-live-call-box{grid-column:1/-1;min-height:90px;gap:5px}.aos-live-amount{font-size:25px}.aos-live-leading{font-size:11px}.aos-live-player-name{padding:10px;align-items:flex-start}.aos-live-player-name h2{font-size:20px}.aos-live-player-name b{font-size:12px}.aos-live-right,.aos-live-lower{grid-template-columns:1fr}.aos-live-lower>section:first-child{grid-column:auto}.aos-live-player-name p{font-size:9px}}
 
+
+/* Admin Control Panel tabs */
+.admin-tab-nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:14px 0 18px}
+.admin-tab-btn{border:1px solid var(--line,#d9e1ec);background:var(--card,#fff);color:var(--ink,#172033);border-radius:12px;padding:12px 10px;font-weight:700;font-size:13px;text-align:left;cursor:pointer;min-height:48px;transition:.18s}
+.admin-tab-btn.active{background:var(--navy,#13233d);color:#fff;border-color:var(--navy,#13233d);box-shadow:0 5px 14px #15233a20}
+.admin-tab-panel{min-width:0}
+@media(max-width:760px){.admin-tab-nav{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.admin-tab-btn{font-size:12px;padding:10px 8px;min-height:46px}}
 </style><style>.tournament-hub-grid{grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}.tournament-hub-card{cursor:pointer;text-align:left;min-height:140px}.tournament-hub-icon{font-size:32px;margin-bottom:8px}</style><style>
 #aosMemoriesGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr));gap:16px}
 .aos-memory-card{overflow:hidden;border-radius:16px;border:1px solid var(--border,#ddd);background:var(--card,#fff);box-shadow:0 8px 24px #0000000b}
@@ -604,9 +611,21 @@ header{gap:18px;height:78px;padding-left:max(18px,calc((100% - 1320px)/2));paddi
 <section id="rankings" class="page hidden"><div class="head"><h2>Player Rankings</h2></div><div id="playerList" class="list"></div></section>
 <section id="champions" class="page hidden"><div class="head"><h2>Champions Hall</h2></div><div id="champList" class="grid"></div></section>
 <section id="admin" class="page hidden"><div class="head"><h2>Admin Control</h2><span id="roleBadge" class="pill">Protected</span></div><div id="adminGate" class="notice">Admin access requires an authenticated account with admin or moderator role.</div><div id="adminArea" class="hidden">
-<div class="card"><h3>Create Tournament</h3><div class="form"><div class="field"><label>Name</label><input id="tName"></div><div class="field"><label>Type</label><select id="tType"><option>League</option><option>Auction</option><option>Solo</option><option>Co-op</option><option>Duo</option><option>3 vs 3</option><option>Premier League</option><option>Champion League</option><option>La Liga</option><option>AOS Super League</option><option>Team</option><option>Knockout</option></select></div><div class="field"><label>Season</label><input id="tSeason" value="Season 1"></div><div class="field"><label>Entry Fee</label><input id="tFee" type="number" value="0"></div><div class="field"><label>Max Participants</label><input id="tMax" type="number" value="16"></div><div class="field"><label>Status</label><select id="tStatus"><option>Registration Open</option><option>Upcoming</option><option>Live</option><option>Completed</option></select></div><div class="field full"><button class="btn green" onclick="createTournament()">Create Tournament</button></div></div></div>
+<div class="admin-tab-nav" id="adminTabNav">
+ <button class="admin-tab-btn active" data-admin-tab="teams" onclick="setAdminTab('teams')">👥 Team & Squad</button>
+ <button class="admin-tab-btn" data-admin-tab="profile" onclick="setAdminTab('profile')">🧾 Profile Approval</button>
+ <button class="admin-tab-btn" data-admin-tab="tournament" onclick="setAdminTab('tournament')">🏆 Create Tournament</button>
+ <button class="admin-tab-btn" data-admin-tab="createTeam" onclick="setAdminTab('createTeam')">➕ Create Team</button>
+ <button class="admin-tab-btn" data-admin-tab="assignment" onclick="setAdminTab('assignment')">🔗 Player Team Assignment</button>
+ <button class="admin-tab-btn" data-admin-tab="auction" onclick="setAdminTab('auction')">🔨 Auction Player Pool</button>
+ <button class="admin-tab-btn" data-admin-tab="results" onclick="setAdminTab('results')">✅ Approved Match Results</button>
+ <button class="admin-tab-btn" data-admin-tab="stats" onclick="setAdminTab('stats')">📊 Update Match Player Stats</button>
+</div>
 
-<div class="card" style="margin-top:14px">
+<div id="adminPanel-teams" class="admin-tab-panel"><div class="card"><h3>Team Details & Squad Management</h3><p class="muted">Tournament ও Team নির্বাচন করে Squad-এর সদস্যদের দেখুন।</p><div class="head"><h3>Team Members</h3></div><div id="teamMemberList" class="list"><div class="empty">Select a Team to see its members.</div></div></div></div>
+<div id="adminPanel-profile" class="admin-tab-panel hidden"><div id="adminProfileApprovalMount"></div></div>
+<div id="adminPanel-tournament" class="admin-tab-panel hidden"><div class="card"><h3>Create Tournament</h3><div class="form"><div class="field"><label>Name</label><input id="tName"></div><div class="field"><label>Type</label><select id="tType"><option>League</option><option>Auction</option><option>Solo</option><option>Co-op</option><option>Duo</option><option>3 vs 3</option><option>Premier League</option><option>Champion League</option><option>La Liga</option><option>AOS Super League</option><option>Team</option><option>Knockout</option></select></div><div class="field"><label>Season</label><input id="tSeason" value="Season 1"></div><div class="field"><label>Entry Fee</label><input id="tFee" type="number" value="0"></div><div class="field"><label>Max Participants</label><input id="tMax" type="number" value="16"></div><div class="field"><label>Status</label><select id="tStatus"><option>Registration Open</option><option>Upcoming</option><option>Live</option><option>Completed</option></select></div><div class="field full"><button class="btn green" onclick="createTournament()">Create Tournament</button></div></div></div></div>
+<div id="adminPanel-createTeam" class="admin-tab-panel hidden"><div class="card" style="margin-top:14px">
   <h3>Create Team</h3>
   <div class="form">
     <div class="field">
@@ -637,11 +656,8 @@ header{gap:18px;height:78px;padding-left:max(18px,calc((100% - 1320px)/2));paddi
       </button>
     </div>
   </div>
-</div>
-
-
-
-<div class="card" style="margin-top:14px">
+</div></div>
+<div id="adminPanel-assignment" class="admin-tab-panel hidden"><div class="card" style="margin-top:14px">
   <h3>Player Team Assignment</h3>
   <p class="muted">Tournament অনুযায়ী Team নির্বাচন করে Player যুক্ত করুন।</p>
 
@@ -674,15 +690,9 @@ header{gap:18px;height:78px;padding-left:max(18px,calc((100% - 1320px)/2));paddi
     </div>
   </div>
 
-  <div class="head">
-    <h3>Team Members</h3>
-  </div>
-  <div id="teamMemberList" class="list">
-    <div class="empty">Select a Team to see its members.</div>
-  </div>
-</div>
-
-<div class="card" style="margin-top:14px">
+  
+</div></div>
+<div id="adminPanel-auction" class="admin-tab-panel hidden"><div class="card" style="margin-top:14px">
   <h3>Auction Player Pool</h3>
 
   <div class="form">
@@ -706,14 +716,15 @@ header{gap:18px;height:78px;padding-left:max(18px,calc((100% - 1320px)/2));paddi
   </div>
 
   <div id="adminAuction" class="list"></div>
-</div>
-
-<div class="card" style="margin-top:14px"><h3>Approve Match Result</h3><div class="form"><div class="field">
+</div></div>
+<div id="adminPanel-results" class="admin-tab-panel hidden"><div class="card" style="margin-top:14px"><h3>Approve Match Result</h3><div class="form"><div class="field">
   <label>Select Match</label>
 <select id="resultMatch">
   <option value="">-- Select Match --</option>
 </select>
-</div><div class="field"><label>Home Score</label><input id="homeScore" type="number" min="0"></div><div class="field"><label>Away Score</label><input id="awayScore" type="number" min="0"></div><div class="field full"><button class="btn green" onclick="saveResult()">Submit & Approve Result</button></div></div></div>
+</div><div class="field"><label>Home Score</label><input id="homeScore" type="number" min="0"></div><div class="field"><label>Away Score</label><input id="awayScore" type="number" min="0"></div><div class="field full"><button class="btn green" onclick="saveResult()">Submit & Approve Result</button></div></div></div></div>
+<div id="adminPanel-stats" class="admin-tab-panel hidden"><div id="adminStatsMount"></div></div>
+
 </div></section>
 <section id="subAdminManagement" class="page hidden">
  <div class="head"><div><div class="eyebrow">MAIN ADMIN ONLY · AOS CONTROL</div><h1>🛡 Sub Admin Management</h1><p class="muted">শুধু Main Admin এখানে Sub Admin যোগ বা অপসারণ করতে পারবেন।</p></div></div>
@@ -791,5 +802,5 @@ header{gap:18px;height:78px;padding-left:max(18px,calc((100% - 1320px)/2));paddi
   <button data-id="playersDirectory" onclick="go('playersDirectory')">👥 Players</button>
 </nav>
 <div id="authModal" class="hidden" style="position:fixed;inset:0;background:#0b1730aa;z-index:20;display:grid;place-items:center;padding:16px"><div class="card" style="width:min(440px,100%)"><div class="row"><h2 id="authTitle">Login</h2><button class="btn light" onclick="closeAuth()">✕</button></div><div class="field"><label>Email</label><input id="authEmail" type="email"></div><div class="field" style="margin-top:10px"><label>Password</label><input id="authPass" type="password"></div><div class="row" style="margin-top:14px"><button class="btn" onclick="doAuth('login')">Login</button><button class="btn light" onclick="doAuth('signup')">Create Account</button></div><p class="muted">নতুন Account তৈরি করলে Email verification প্রয়োজন হতে পারে।</p></div></div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="config.js"></script><script src="app.js?v=20261122-08"></script><script src="./pwa.js?v=3"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="config.js"></script><script src="app.js?v=20261122-09"></script><script src="./pwa.js?v=3"></script>
 </body></html>
