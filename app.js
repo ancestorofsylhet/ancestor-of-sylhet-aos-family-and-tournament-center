@@ -30,7 +30,7 @@ async function loadCommunityFeed(){
  const authorIds=[...new Set([...communityPosts.map(p=>p.author_id),...communityComments.map(c=>c.author_id)])];
  let profileMap={};
  if(authorIds.length){const pr=await db.from("profiles").select("id,display_name,avatar_url").in("id",authorIds);(pr.data||[]).forEach(p=>profileMap[p.id]=p);}
- const admin=!!me&&String(role).toLowerCase()==="admin";
+ const admin=!!me&&["admin","sub_admin"].includes(String(role).toLowerCase());
  const pending=communityPosts.filter(p=>p.status==="pending"&&admin);
  const queue=$("communityAdminQueue"),queueList=$("communityPendingList");
  if(queue)queue.classList.toggle("hidden",!admin);
@@ -107,11 +107,11 @@ function renderAOSMemories(){
  const rows=aosMemories.filter(x=>aosMemoryFilter==="all"||x.media_type===aosMemoryFilter);
  grid.innerHTML=rows.map(x=>{const url=db.storage.from("aos-memories").getPublicUrl(x.file_path).data.publicUrl;
  const media=x.media_type==="video"?'<video class="aos-memory-media" controls preload="metadata" src="'+url+'"></video>':'<img class="aos-memory-media" loading="lazy" src="'+url+'" alt="'+esc(x.title)+'">';
- return '<article class="aos-memory-card">'+media+'<div class="aos-memory-body"><h3>'+esc(x.title)+'</h3><p class="muted">'+esc(x.description||"")+'</p><small class="muted">'+new Date(x.created_at).toLocaleDateString()+'</small>'+(String(role).toLowerCase()==="admin"&&me?'<button class="btn light" style="margin-top:10px" onclick="deleteAOSMemory(\''+x.id+'\')">Delete</button>':'')+'</div></article>';
+ return '<article class="aos-memory-card">'+media+'<div class="aos-memory-body"><h3>'+esc(x.title)+'</h3><p class="muted">'+esc(x.description||"")+'</p><small class="muted">'+new Date(x.created_at).toLocaleDateString()+'</small>'+(["admin","sub_admin"].includes(String(role).toLowerCase())&&me?'<button class="btn light" style="margin-top:10px" onclick="deleteAOSMemory(\''+x.id+'\')">Delete</button>':'')+'</div></article>';
  }).join("")||'<div class="empty">এখনো কোনো স্মৃতি Upload করা হয়নি। খুব শিগগিরই AOS-এর স্মৃতির অ্যালবাম ভরে উঠবে।</div>';
 }
 async function uploadAOSMemory(){
- if(!requireMainAdmin())return;
+ if(!requireAdmin())return;
  const title=$("memoryTitle").value.trim(),description=$("memoryDescription").value.trim(),file=$("memoryFile").files?.[0];
  if(!title||!file)return msg("স্মৃতির নাম ও Photo/Video নির্বাচন করুন।","error");
  const image=file.type.startsWith("image/"),video=file.type.startsWith("video/");
@@ -127,14 +127,14 @@ async function uploadAOSMemory(){
  btn.disabled=false;btn.textContent="Upload Memory";await loadAll();go("memories");msg("AOS Memory সফলভাবে প্রকাশ হয়েছে।","success");
 }
 async function deleteAOSMemory(id){
- if(!requireMainAdmin()||!confirm("এই স্মৃতিটি Delete করবেন?"))return;
+ if(!requireAdmin()||!confirm("এই স্মৃতিটি Delete করবেন?"))return;
  const item=aosMemories.find(x=>x.id===id);if(!item)return;
  const del=await db.from("aos_memories").delete().eq("id",id);
  if(del.error)return msg("Delete হয়নি: "+del.error.message,"error");
  await db.storage.from("aos-memories").remove([item.file_path]);await loadAll();go("memories");msg("Memory Delete হয়েছে।","success");
 }
 document.addEventListener("change",e=>{if(e.target&&e.target.id==="communityPostImage")$("communityImageName").textContent=e.target.files?.[0]?.name||"No photo selected";});
-function go(id){document.querySelectorAll(".page").forEach(x=>x.classList.add("hidden"));const page=$(id);if(!page)return;page.classList.remove("hidden");document.querySelectorAll(".bottom button,.top-nav button,.sidebar-link").forEach(x=>x.classList.toggle("active",x.dataset.id===id));toggleAOSSidebar(false);render();window.scrollTo(0,0)}
+function go(id){if(id==="subAdminManagement"&&!requireMainAdmin())return;document.querySelectorAll(".page").forEach(x=>x.classList.add("hidden"));const page=$(id);if(!page)return;page.classList.remove("hidden");document.querySelectorAll(".bottom button,.top-nav button,.sidebar-link").forEach(x=>x.classList.toggle("active",x.dataset.id===id));toggleAOSSidebar(false);render();window.scrollTo(0,0)}
 function openAuth(){$("authModal").classList.remove("hidden")}
 function closeAuth(){$("authModal").classList.add("hidden")}
 async function doAuth(mode){if(!db)return msg("আগে config.js-এ Supabase URL ও anon key বসান।","error");const email=$("authEmail").value.trim(),password=$("authPass").value;if(!email||!password)return msg("Email ও Password দিন।","error");const r=mode==="login"?await db.auth.signInWithPassword({email,password}):await db.auth.signUp({email,password});if(r.error)return msg(r.error.message,"error");if(mode==="signup"&&!r.data.session){msg("Account তৈরি হয়েছে। Email verification সম্পন্ন করে Login করুন।","success");return}session=r.data.session;closeAuth();await loadAll();msg("সফলভাবে Login হয়েছে।","success")}
@@ -215,8 +215,38 @@ aosMemories=memoryResult.data||[];
 
 render();
 }
-function requireAdmin(){if(!me||!["admin","moderator"].includes(role)){msg("এই কাজের জন্য Admin/Moderator permission প্রয়োজন।","error");return false}return true}
-function requireMainAdmin(){if(!me||String(role).toLowerCase()!=="admin"){msg("Management Control Panel শুধু Main Admin ব্যবহার করতে পারবেন।","error");return false}return true}
+
+async function loadSubAdminManagement(){
+ if(!requireMainAdmin())return;
+ const select=$("subAdminPlayerSelect"),list=$("subAdminList");
+ if(select)select.innerHTML='<option value="">Loading registered players...</option>';
+ if(list)list.innerHTML='<div class="empty">লোড হচ্ছে...</div>';
+ const {data,error}=await db.from("profiles").select("id,display_name,efootball_id,role,is_active").eq("is_active",true).order("display_name");
+ if(error){if(select)select.innerHTML='<option value="">Player list load failed</option>';if(list)list.innerHTML='<div class="empty">তালিকা লোড হয়নি: '+esc(error.message)+'</div>';return;}
+ const rows=data||[];
+ const eligible=rows.filter(p=>["player","moderator"].includes(String(p.role||"").toLowerCase()));
+ if(select)select.innerHTML='<option value="">-- Player নির্বাচন করুন --</option>'+eligible.map(p=>'<option value="'+p.id+'">'+esc(p.display_name||"AOS Player")+' · '+esc(p.efootball_id||"No ID")+'</option>').join("");
+ const subs=rows.filter(p=>String(p.role||"").toLowerCase()==="sub_admin");
+ if(list)list.innerHTML=subs.map(p=>'<div class="item"><div class="avatar">🛡</div><div class="grow"><b>'+esc(p.display_name||"AOS Player")+'</b><small>'+esc(p.efootball_id||"")+' · Sub Admin</small></div><button class="btn danger" onclick="removeSubAdmin(\''+p.id+'\')">Remove Access</button></div>').join("")||'<div class="empty">এখনো কোনো Sub Admin যোগ করা হয়নি।</div>';
+}
+async function addSelectedSubAdmin(){
+ if(!requireMainAdmin())return;
+ const id=$("subAdminPlayerSelect")?.value;
+ if(!id)return msg("আগে একজন Registered Player নির্বাচন করুন।","error");
+ if(!confirm("এই Player-কে Sub Admin করতে চান?"))return;
+ const {data,error}=await db.rpc("aos_manage_sub_admin",{p_user_id:id,p_enabled:true});
+ if(error)return msg("Sub Admin যোগ হয়নি: "+error.message,"error");
+ await loadAll();await loadSubAdminManagement();msg("Sub Admin সফলভাবে যোগ হয়েছে।","success");
+}
+async function removeSubAdmin(id){
+ if(!requireMainAdmin()||!confirm("এই Sub Admin-এর Admin Access বন্ধ করবেন?"))return;
+ const {data,error}=await db.rpc("aos_manage_sub_admin",{p_user_id:id,p_enabled:false});
+ if(error)return msg("Sub Admin access remove হয়নি: "+error.message,"error");
+ await loadAll();await loadSubAdminManagement();msg("Sub Admin access বন্ধ হয়েছে।","success");
+}
+
+function requireAdmin(){if(!me||!["admin","moderator","sub_admin"].includes(String(role).toLowerCase())){msg("এই কাজের জন্য Admin/Moderator permission প্রয়োজন।","error");return false}return true}
+function requireMainAdmin(){if(!me||String(role).toLowerCase()!=="admin"){msg("এই Control Panel শুধু Main Admin ব্যবহার করতে পারবেন।","error");return false}return true}
 
 function loadSiteLogo(){
  const img=$("siteLogo"),fallback=$("siteLogoFallback"),heroImg=$("heroSiteLogo"),heroFallback=$("heroLogoFallback");
@@ -798,7 +828,7 @@ function toggleAuctionVoiceSpeaker(){
   renderAuctionVoiceStatus();
 }
 async function adminMuteAuctionVoiceUser(userId,shouldMute){
-  if(!["admin","moderator"].includes(String(role).toLowerCase()))return msg("শুধু Admin/Moderator অন্যের Mic Mute করতে পারবেন।","error");
+  if(!["admin","moderator","sub_admin"].includes(String(role).toLowerCase()))return msg("শুধু Admin/Moderator অন্যের Mic Mute করতে পারবেন।","error");
   if(!auctionVoicePresence.some(p=>p.user_id===userId))return;
   auctionVoiceRemoteMuteState[userId]=shouldMute;
   await sendAuctionVoiceSignal(userId,{type:shouldMute?"remote-mute":"remote-unmute"});
@@ -866,7 +896,7 @@ function renderAuctionControlPanel(){
   liveDashboard.classList.toggle("hidden",auctionArenaTab!=="live");
   renderAuctionChat();return;
  }
- const isMainAdmin=String(role).toLowerCase()==="admin",staff=["admin","moderator"].includes(String(role).toLowerCase());
+ const isMainAdmin=["admin","sub_admin"].includes(String(role).toLowerCase()),staff=["admin","moderator","sub_admin"].includes(String(role).toLowerCase());
  const settings=auctionTournamentSettings||{base_price:100,initial_budget:10000,min_increment:100,max_squad_size:10};
  const playerOptions=auctionPlayers.filter(p=>String(p.tournament_id)===String(auctionTournamentId)&&p.status==="available").sort((a,b)=>(a.serial_no||0)-(b.serial_no||0)).map(p=>'<option value="'+p.id+'">'+(p.serial_no?("#"+p.serial_no+" · "):"")+esc(p.profile?.display_name||"Player")+'</option>').join("");
  const profileOptions='<option value="">Not Assigned</option>'+players.map(p=>'<option value="'+p.id+'">'+esc(p.display_name||"Player")+'</option>').join("");
@@ -2180,7 +2210,7 @@ function renderTeamMemberList(){
         <small style="display:block">Device: ${esc(m.player?.device||"Not Added")}</small>
         <small style="display:block">Club: ${esc(m.player?.club_name||"Not Added")}</small>
       </div>
-      ${["admin","moderator"].includes(role)?`
+      ${["admin","moderator","sub_admin"].includes(role)?`
         <button class="btn danger" onclick="removeTeamMember('${m.id}')">Remove</button>
       `:""}
     </div>
@@ -2576,7 +2606,7 @@ function renderManagement(){
  if(panel)panel.classList.toggle("hidden",!me||String(role).toLowerCase()!=="admin");
  const records=managementTableReady
    ? managementMembers.filter(m=>m.is_active)
-   : players.filter(p=>["admin","moderator"].includes(String(p.role||"").toLowerCase())).map(p=>({id:p.id,name:p.display_name,position:String(p.role).toLowerCase()==="admin"?"Administrator":"Moderator",department:"AOS Management",photo_url:p.avatar_url,responsibilities:p.club_name,is_active:true}));
+   : players.filter(p=>["admin","moderator","sub_admin"].includes(String(p.role||"").toLowerCase())).map(p=>({id:p.id,name:p.display_name,position:String(p.role).toLowerCase()==="admin"?"Administrator":String(p.role).toLowerCase()==="sub_admin"?"Sub Admin":"Moderator",department:"AOS Management",photo_url:p.avatar_url,responsibilities:p.club_name,is_active:true}));
  box.innerHTML=records.map(m=>`<div class="card" style="text-align:center">${m.photo_url?`<img src="${esc(m.photo_url)}" alt="${esc(m.name)}" style="width:96px;height:96px;border-radius:50%;object-fit:cover;border:3px solid var(--gold)">`:'<div class="avatar" style="width:96px;height:96px;margin:auto;font-size:30px">🛡</div>'}<h3>${esc(m.name||"AOS Management")}</h3><span class="pill">${esc(m.position||"Management Member")}</span><p class="muted">${esc(m.department||"Ancestor of Sylhet")}</p>${m.responsibilities?`<p>${esc(m.responsibilities)}</p>`:""}</div>`).join("")||'<div class="empty">এখনো কোনো Management Member যুক্ত করা হয়নি।</div>';
  const adminList=$("managementAdminList");
  if(adminList){
@@ -2714,7 +2744,7 @@ const aosTournamentCategories=[{id:'solo',name:'Solo Tournament',icon:'👤',key
 function openAOSTournamentCategory(id){aosSelectedCategory=id;go('tournamentHub');renderAOSTournamentHub();}
 function renderAOSTournamentHub(){const box=$('tournamentHubContent');if(!box)return;if(!aosSelectedCategory){box.innerHTML='<div class="grid tournament-hub-grid">'+aosTournamentCategories.map(c=>'<button class="card tournament-hub-card" onclick="openAOSTournamentCategory(\''+c.id+'\')"><div class="tournament-hub-icon">'+c.icon+'</div><h3>'+esc(c.name)+'</h3><small>Open Tournament →</small></button>').join('')+'</div>';return;}const cat=aosTournamentCategories.find(c=>c.id===aosSelectedCategory);if(!cat)return;const list=tournaments.filter(t=>{const s=(String(t.name||'')+' '+String(t.type||'')).toLowerCase();return cat.keys.some(k=>s.includes(k));});box.innerHTML='<button class="btn light" onclick="aosSelectedCategory=\'\';renderAOSTournamentHub()">← All Categories</button><div class="head"><h2>'+cat.icon+' '+esc(cat.name)+'</h2><span class="pill">'+list.length+' Tournament(s)</span></div><div class="grid">'+list.map(t=>'<div class="card"><h3>'+esc(t.name)+'</h3><p class="muted">'+esc(t.season||'')+' · '+esc(t.status||'')+'</p><button class="btn" onclick="openTournament(\''+t.id+'\')">Open Tournament</button></div>').join('')+'</div>'+(list.length?'':'<div class="empty">এই Category-তে Tournament নেই। Admin Panel থেকে একই নাম/ধরনের Tournament তৈরি করুন।</div>');}
 function render() {
-  const memoryAdmin=$("aosMemoryAdmin");if(memoryAdmin)memoryAdmin.classList.toggle("hidden",!(me&&String(role).toLowerCase()==="admin"));
+  const memoryAdmin=$("aosMemoryAdmin");if(memoryAdmin)memoryAdmin.classList.toggle("hidden",!(me&&["admin","sub_admin"].includes(String(role).toLowerCase())));const subNav=$("subAdminNavLink");if(subNav)subNav.classList.toggle("hidden",!(me&&String(role).toLowerCase()==="admin"));if(me&&String(role).toLowerCase()==="admin")loadSubAdminManagement();
   renderAOSMemories();
   loadCommunityFeed();
   renderTournamentCardMaker();
@@ -2749,7 +2779,7 @@ const recentMatches=[...matches].sort((x,y)=>new Date(y.played_at||y.created_at|
 $("homeMatches").innerHTML=recentMatches.map(m=>`<div class="item"><div class="grow"><b>${esc(m.home?.name||"TBD")} vs ${esc(m.away?.name||"TBD")}</b><small>Round ${m.round_no||"—"} · ${esc(m.status||"scheduled")}</small></div><b>${m.home_score??"—"} : ${m.away_score??"—"}</b></div>`).join("")||'<div class="empty">এখনো কোনো Match/Fixture যোগ করা হয়নি।</div>';
 const recentPlayers=[...players].filter(p=>p.display_name).slice(0,5);
 $("homePlayers").innerHTML=recentPlayers.map(renderHomePlayer).join("")||'<div class="empty">এখনো কোনো Player Register করেনি।</div>';
-const tc=tournaments.map(t=>`<div class="card"><span class="pill">${esc(t.type||"Tournament")}</span><h3>${esc(t.name)}</h3><p class="muted">${esc(t.season||"")} · ${esc(t.status||"")}</p><p class="muted">Entry: ${Number(t.entry_fee||0)} · Max: ${t.max_participants||"—"}</p><button class="btn" onclick="openTournament('${t.id}')">Open Tournament</button>${role==="admin"||role==="moderator"?` <button class="btn light" onclick="deleteTournament('${t.id}')">Delete</button>`:""}</div>`).join("")||'<div class="empty">এখনো Tournament নেই</div>';$('homeTours').innerHTML=tc;$('tourList').innerHTML=tc;
+const tc=tournaments.map(t=>`<div class="card"><span class="pill">${esc(t.type||"Tournament")}</span><h3>${esc(t.name)}</h3><p class="muted">${esc(t.season||"")} · ${esc(t.status||"")}</p><p class="muted">Entry: ${Number(t.entry_fee||0)} · Max: ${t.max_participants||"—"}</p><button class="btn" onclick="openTournament('${t.id}')">Open Tournament</button>${["admin","moderator","sub_admin"].includes(String(role).toLowerCase())?` <button class="btn light" onclick="deleteTournament('${t.id}')">Delete</button>`:""}</div>`).join("")||'<div class="empty">এখনো Tournament নেই</div>';$('homeTours').innerHTML=tc;$('tourList').innerHTML=tc;
 
 $("playerList").innerHTML=players.map((p,i)=>`<div class="item"><div class="avatar">${esc((p.display_name||"?")[0])}</div><div class="grow"><b>${esc(p.display_name||"Player")}</b><small>${esc(p.club_name||"")} · ${esc(p.efootball_id||"")}</small></div><span class="pill">${esc(p.role||"player")}</span></div>`).join("")||'<div class="empty">কোনো Player নেই</div>';
 
@@ -2763,7 +2793,7 @@ const arenaPlayers = auctionTournamentId
   : [];
 const activeLotId=auctionRoom?.current_player_id||"";
 const roomLive=auctionRoom?.room_status==="live";
-const auctionStaff=["admin","moderator"].includes(String(role).toLowerCase());
+const auctionStaff=["admin","moderator","sub_admin"].includes(String(role).toLowerCase());
 const currentLot=arenaPlayers.find(a=>String(a.id)===String(activeLotId))||null;
 const lotBids=currentLot?auctionBids.filter(b=>String(b.auction_player_id)===String(currentLot.id)).sort((x,y)=>Number(y.amount)-Number(x.amount)): [];
 const highestBid=lotBids[0]||null;
@@ -2826,7 +2856,7 @@ $("champList").innerHTML = champions.map(c => `
   </div>
 `).join("") || '<div class="empty">Champion record এখনো নেই</div>';
 
-$("adminGate").classList.toggle("hidden",["admin","moderator"].includes(role));$("adminArea").classList.toggle("hidden",!["admin","moderator"].includes(role));$("roleBadge").textContent=role;
+$("adminGate").classList.toggle("hidden",["admin","moderator","sub_admin"].includes(role));$("adminArea").classList.toggle("hidden",!["admin","moderator","sub_admin"].includes(role));$("roleBadge").textContent=role;
 renderPlayerDashboard();
 if(me)loadMyProfileRequests();
 
