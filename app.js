@@ -849,7 +849,7 @@ function renderAuctionVoiceStatus(){
       const muted=p.self?auctionVoiceMicMuted:!!auctionVoiceRemoteMicState[p.user_id];
       const forced=!p.self&&!!auctionVoiceRemoteMuteState[p.user_id];
       const connected=p.self||!!auctionVoicePeers[p.user_id];
-      const adminButton=!p.self&&["admin","moderator"].includes(String(role).toLowerCase())
+      const adminButton=!p.self&&["admin","moderator","sub_admin"].includes(String(role).toLowerCase())
         ?'<button class="btn light" onclick="adminMuteAuctionVoiceUser(\''+p.user_id+'\','+(!forced)+')">'+(forced?"Lift Mute":"Mute Mic")+'</button>':"";
       return '<div class="item" style="padding:8px 10px"><div class="grow"><b>'+esc(p.display_name||"Auction Member")+(p.self?" (You)":"")+'</b><small>'+(connected?"Voice Connected":"Connecting…")+(muted?" · Mic Muted":" · Mic On")+(forced?" · Admin Restricted":"")+'</small></div>'+adminButton+'</div>';
     }).join("")||'<small class="muted">কেউ Voice Room-এ নেই।</small>';
@@ -938,7 +938,7 @@ async function loadAuctionPlayerFixtures(tournamentId){
   }
 }
 async function createAuctionPlayerFixture(){
- if(String(role).toLowerCase()!=="admin")return msg("শুধু Main Admin Fixture Generate করতে পারবেন।","error");
+ if(!["admin","sub_admin"].includes(String(role).toLowerCase()))return msg("শুধু Admin/Sub Admin Fixture Generate করতে পারবেন।","error");
  const homeTeam=$("apfHomeTeam")?.value,awayTeam=$("apfAwayTeam")?.value;
  if(!homeTeam||!awayTeam||homeTeam===awayTeam)return msg("দুইটি আলাদা Team নির্বাচন করুন।","error");
  const btn=$("apfGeneratePairFixtures");if(btn){btn.disabled=true;btn.textContent="Generating...";}
@@ -950,7 +950,7 @@ async function createAuctionPlayerFixture(){
  msg(Number(data)>0?Number(data)+"টি Player vs Player Fixture তৈরি হয়েছে।":"এই Team Pair-এর সব Fixture আগে থেকেই আছে অথবা Sold Player নেই।","success");
 }
 function setAuctionPlayerFixtureLive(fixtureId){
- if(String(role).toLowerCase()!=="admin")return msg("শুধু Main Admin Match Live করতে পারবেন।","error");
+ if(!["admin","sub_admin"].includes(String(role).toLowerCase()))return msg("শুধু Admin/Sub Admin Match Live করতে পারবেন।","error");
  db.from("auction_player_fixtures").update({status:"live",updated_at:new Date().toISOString()}).eq("id",fixtureId).eq("status","scheduled")
  .then(async({error})=>{if(error)return msg(error.message,"error");await loadAuctionPlayerFixtures(auctionTournamentId);renderAuctionMatchCenter();msg("Match এখন LIVE।","success");});
 }
@@ -962,7 +962,7 @@ function submitAuctionPlayerMatchResult(fixtureId){
   .then(async({error})=>{if(error)return msg(error.message,"error");await loadAuctionPlayerFixtures(auctionTournamentId);renderAuctionMatchCenter();msg("Result Admin Review-এর জন্য জমা হয়েছে।","success");});
 }
 function reviewAuctionPlayerMatchResult(fixtureId,approve){
-  if(String(role).toLowerCase()!=="admin")return msg("শুধু Main Admin Result Confirm করতে পারবেন।","error");
+  if(!["admin","sub_admin"].includes(String(role).toLowerCase()))return msg("শুধু Admin/Sub Admin Result Confirm করতে পারবেন।","error");
   const hs=Number($("apf-review-h-"+fixtureId)?.value),as=Number($("apf-review-a-"+fixtureId)?.value);
   if(approve&&(!Number.isInteger(hs)||!Number.isInteger(as)||hs<0||as<0))return msg("সঠিক Final Score দিন।","error");
   if(!confirm(approve?"এই Score Confirm করে Result Card তৈরি করবেন?":"এই Result Submission Reject করবেন?"))return;
@@ -1031,7 +1031,7 @@ function setAuctionMatchTab(tab){auctionArenaTab=tab;renderAuctionControlPanel()
 function renderAuctionMatchCenter(){
  const root=$("auctionMatchCenter");if(!root)return;
  if(!auctionTournamentId){root.innerHTML='<div class="empty">Auction Tournament নির্বাচন করুন।</div>';return;}
- const isAdmin=String(role).toLowerCase()==="admin";
+ const isAdmin=["admin","sub_admin"].includes(String(role).toLowerCase());
  const sold=auctionPlayers.filter(p=>String(p.tournament_id)===String(auctionTournamentId)&&p.status==="sold");
  const squads=auctionTeams.map(t=>{const list=sold.filter(p=>String(p.team_id)===String(t.id)).slice(0,10);return '<details class="apf-squad"><summary>'+(t.logo_url?'<img src="'+esc(t.logo_url)+'">':'🏆')+' <b>'+esc(t.name)+'</b><span>'+list.length+'/10 Players</span></summary><div class="apf-squad-grid">'+(list.map(p=>'<div class="apf-player">'+(p.profile?.avatar_url?'<img src="'+esc(p.profile.avatar_url)+'">':'<span>👤</span>')+'<b>'+esc(p.profile?.display_name||"Player")+'</b><small>'+esc(p.profile?.efootball_id||"")+'</small></div>').join("")||'<small class="muted">Squad এখনো খালি।</small>')+'</div></details>';}).join("");
  const teamOpts='<option value="">Select Team</option>'+auctionTeams.map(t=>'<option value="'+t.id+'">'+esc(t.name)+'</option>').join("");
@@ -2700,13 +2700,13 @@ async function loadMyProfileRequests(){
  box.innerHTML=(data||[]).map(r=>'<div class="item"><div class="grow"><b>Profile Edit Request</b><small>'+esc(r.status.toUpperCase())+' · '+new Date(r.created_at).toLocaleString()+(r.admin_note?' · '+esc(r.admin_note):'')+'</small></div><span class="pill '+(r.status==="approved"?"":"gold")+'">'+esc(r.status)+'</span></div>').join("")||'<small class="muted">এখনো কোনো Edit Request নেই।</small>';
 }
 function ensurePlayerApprovalPanel(){
- if(String(role).toLowerCase()!=="admin")return;
+ if(!["admin","sub_admin"].includes(String(role).toLowerCase()))return;
  const area=$("adminArea");if(!area)return;
  if(!$("playerApprovalPanel"))area.insertAdjacentHTML("afterbegin",'<div class="card" id="playerApprovalPanel" style="margin-bottom:15px"><div class="head"><h3>Player Registration & Profile Approval</h3><span class="pill gold">Main Admin Only</span></div><p class="muted">Player-এর Profile Edit Request অনুমোদন বা বাতিল করুন। প্রয়োজন হলে Player-কে Remove করুন।</p><div id="profileEditRequestList" class="list"></div><div class="head"><h3>Registered Players</h3></div><div id="adminRegisteredPlayers" class="list"></div></div>');
  loadProfileApprovalPanel();
 }
 async function loadProfileApprovalPanel(){
- if(String(role).toLowerCase()!=="admin")return;
+ if(!["admin","sub_admin"].includes(String(role).toLowerCase()))return;
  const reqBox=$("profileEditRequestList"),playerBox=$("adminRegisteredPlayers");if(!reqBox||!playerBox)return;
  const {data:requests,error}=await db.from("profile_edit_requests").select("*").eq("status","pending").order("created_at",{ascending:true});
  if(error)reqBox.innerHTML='<div class="notice error">'+esc(error.message)+'</div>';
@@ -2714,7 +2714,7 @@ async function loadProfileApprovalPanel(){
  playerBox.innerHTML=players.map(p=>'<div class="item">'+(p.avatar_url?'<img src="'+esc(p.avatar_url)+'" style="width:42px;height:42px;object-fit:cover;border-radius:50%">':'<div class="avatar">👤</div>')+'<div class="grow"><b>'+esc(p.display_name||"Player")+'</b><small>'+esc(p.efootball_id||"")+' · '+esc(p.club_name||"")+'</small></div><button class="btn danger" onclick="removeRegisteredPlayer(\''+p.id+'\')">Remove</button></div>').join("")||'<div class="empty">কোনো Active Player নেই।</div>';
 }
 async function reviewProfileRequest(id,approve){
- if(!requireMainAdmin())return;
+ if(!requireAdmin())return;
  const {data:r,error}=await db.from("profile_edit_requests").select("*").eq("id",id).eq("status","pending").maybeSingle();
  if(error||!r)return msg(error?.message||"Request পাওয়া যায়নি।","error");
  if(approve){
@@ -2728,7 +2728,7 @@ async function reviewProfileRequest(id,approve){
  msg(approve?"Profile Edit অনুমোদন হয়েছে।":"Profile Edit Request বাতিল হয়েছে।","success");await loadAll();
 }
 async function removeRegisteredPlayer(id){
- if(!requireMainAdmin())return;
+ if(!requireAdmin())return;
  if(!confirm("এই Player-কে Website থেকে Remove করতে চাও?"))return;
  const {error}=await db.from("profiles").update({is_active:false}).eq("id",id);
  if(error)return msg("Player Remove হয়নি: "+error.message,"error");
