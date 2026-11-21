@@ -59,7 +59,7 @@ async function submitCommunityPost(){
  btn.disabled=false;btn.textContent="Submit for Approval";msg("আপনার পোস্ট Admin Approval-এর জন্য পাঠানো হয়েছে।","success");await loadCommunityFeed();
 }
 async function reviewCommunityPost(id,status){
- if(!requireMainAdmin())return;
+ if(!requireAdmin())return;
  const update={status:status,approved_at:status==="approved"?new Date().toISOString():null,approved_by:status==="approved"?me.id:null};
  const r=await db.from("aos_community_posts").update(update).eq("id",id);
  if(r.error)return msg("Post update হয়নি: "+r.error.message,"error");
@@ -2702,7 +2702,7 @@ async function loadMyProfileRequests(){
 function ensurePlayerApprovalPanel(){
  if(!["admin","sub_admin"].includes(String(role).toLowerCase()))return;
  const area=$("adminArea");if(!area)return;
- if(!$("playerApprovalPanel"))area.insertAdjacentHTML("afterbegin",'<div class="card" id="playerApprovalPanel" style="margin-bottom:15px"><div class="head"><h3>Player Registration & Profile Approval</h3><span class="pill gold">Main Admin Only</span></div><p class="muted">Player-এর Profile Edit Request অনুমোদন বা বাতিল করুন। প্রয়োজন হলে Player-কে Remove করুন।</p><div id="profileEditRequestList" class="list"></div><div class="head"><h3>Registered Players</h3></div><div id="adminRegisteredPlayers" class="list"></div></div>');
+ if(!$("playerApprovalPanel"))area.insertAdjacentHTML("afterbegin",'<div class="card" id="playerApprovalPanel" style="margin-bottom:15px"><div class="head"><h3>Player Registration & Profile Approval</h3><span class="pill gold">Admin & Sub Admin</span></div><p class="muted">Player-এর Profile Edit Request অনুমোদন বা বাতিল করুন। প্রয়োজন হলে Player-কে Remove করুন।</p><div id="profileEditRequestList" class="list"></div><div class="head"><h3>Registered Players</h3></div><div id="adminRegisteredPlayers" class="list"></div></div>');
  loadProfileApprovalPanel();
 }
 async function loadProfileApprovalPanel(){
