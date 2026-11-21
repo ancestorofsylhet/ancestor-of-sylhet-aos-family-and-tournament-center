@@ -16,6 +16,7 @@ let teamMembers=[];
 let selectedTournamentId="";
 let auctionArenaTab="control";
 let tournamentDetailTab="overview";
+let aosSelectedCategory="";
 let selectedTournamentTeams=[];
 let memberTournamentId="";
 let memberTeamId="";let auctionTournamentId = "";let auctionPlayerFixtures=[],auctionPlayerSubmissions=[],auctionMatchTab="squads";let auctionTournamentSettings=null,auctionTeamSettings=[],auctionRoom=null,auctionChatMessages=[],auctionRealtimeChannel=null,auctionCallTimer=null,auctionCallAdvancing=false,auctionLastAnnouncedState="";
@@ -2589,8 +2590,12 @@ function renderHomePlayer(p){
  const photo=p.avatar_url?'<img src="'+esc(p.avatar_url)+'" alt="'+esc(p.display_name||'Player')+' photo" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'grid\'">':'';
  return '<div class="item home-player-item"><div class="home-player-avatar">'+photo+'<span '+(p.avatar_url?'style="display:none"':'')+'>'+initial+'</span></div><div class="grow"><b>'+esc(p.display_name||'Player')+'</b><small>'+esc(p.club_name||'Ancestor of Sylhet')+' · '+esc(p.efootball_id||'')+'</small></div><span class="pill">Player</span></div>';
 }
+const aosTournamentCategories=[{id:'solo',name:'Solo Tournament',icon:'👤',keys:['solo']},{id:'coop',name:'Co-op Tournament',icon:'🤝',keys:['coop','co-op']},{id:'duo',name:'Duo Tournament',icon:'👥',keys:['duo']},{id:'3v3',name:'3 vs 3',icon:'⚽',keys:['3 vs 3','3v3']},{id:'premier',name:'Premier League',icon:'🏆',keys:['premier league']},{id:'champions',name:'Champion League',icon:'🌟',keys:['champion league','champions league']},{id:'laliga',name:'La Liga',icon:'🇪🇸',keys:['la liga','laliga']},{id:'aos',name:'AOS Super League',icon:'🛡️',keys:['aos super league']}];
+function openAOSTournamentCategory(id){aosSelectedCategory=id;go('tournamentHub');renderAOSTournamentHub();}
+function renderAOSTournamentHub(){const box=$('tournamentHubContent');if(!box)return;if(!aosSelectedCategory){box.innerHTML='<div class="grid tournament-hub-grid">'+aosTournamentCategories.map(c=>'<button class="card tournament-hub-card" onclick="openAOSTournamentCategory(\''+c.id+'\')"><div class="tournament-hub-icon">'+c.icon+'</div><h3>'+esc(c.name)+'</h3><small>Open Tournament →</small></button>').join('')+'</div>';return;}const cat=aosTournamentCategories.find(c=>c.id===aosSelectedCategory);if(!cat)return;const list=tournaments.filter(t=>{const s=(String(t.name||'')+' '+String(t.type||'')).toLowerCase();return cat.keys.some(k=>s.includes(k));});box.innerHTML='<button class="btn light" onclick="aosSelectedCategory=\'\';renderAOSTournamentHub()">← All Categories</button><div class="head"><h2>'+cat.icon+' '+esc(cat.name)+'</h2><span class="pill">'+list.length+' Tournament(s)</span></div><div class="grid">'+list.map(t=>'<div class="card"><h3>'+esc(t.name)+'</h3><p class="muted">'+esc(t.season||'')+' · '+esc(t.status||'')+'</p><button class="btn" onclick="openTournament(\''+t.id+'\')">Open Tournament</button></div>').join('')+'</div>'+(list.length?'':'<div class="empty">এই Category-তে Tournament নেই। Admin Panel থেকে একই নাম/ধরনের Tournament তৈরি করুন।</div>');}
 function render() {
   renderTournamentCardMaker();
+  renderAOSTournamentHub();
   renderPublicPlayers();
   renderTeamDirectory();
   ensurePlayerApprovalPanel();
