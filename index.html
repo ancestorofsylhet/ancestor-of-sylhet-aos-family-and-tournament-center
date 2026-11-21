@@ -610,7 +610,7 @@ header{gap:18px;height:78px;padding-left:max(18px,calc((100% - 1320px)/2));paddi
 
 <section id="rankings" class="page hidden"><div class="head"><h2>Player Rankings</h2></div><div id="playerList" class="list"></div></section>
 <section id="champions" class="page hidden"><div class="head"><h2>Champions Hall</h2></div><div id="champList" class="grid"></div></section>
-<section id="admin" class="page hidden"><div class="head"><h2>Admin Control</h2><span id="roleBadge" class="pill">Protected</span></div><div id="adminGate" class="notice">Admin access requires an authenticated account with admin or moderator role.</div><div id="adminArea" class="hidden">
+<section id="admin" class="page hidden"><div class="head"><h2>Admin Control</h2><span id="roleBadge" class="pill">Protected</span></div><div id="adminGate" class="notice">Admin access requires an authenticated Admin, Sub Admin or Moderator account.</div><div id="adminArea" class="hidden">
 <div class="admin-tab-nav" id="adminTabNav">
  <button class="admin-tab-btn active" data-admin-tab="teams" onclick="setAdminTab('teams')">👥 Team & Squad</button>
  <button class="admin-tab-btn" data-admin-tab="profile" onclick="setAdminTab('profile')">🧾 Profile Approval</button>
@@ -622,7 +622,7 @@ header{gap:18px;height:78px;padding-left:max(18px,calc((100% - 1320px)/2));paddi
  <button class="admin-tab-btn" data-admin-tab="stats" onclick="setAdminTab('stats')">📊 Update Match Player Stats</button>
 </div>
 
-<div id="adminPanel-teams" class="admin-tab-panel"><div class="card"><h3>Team Details & Squad Management</h3><p class="muted">Tournament ও Team নির্বাচন করে Squad-এর সদস্যদের দেখুন।</p><div class="head"><h3>Team Members</h3></div><div id="teamMemberList" class="list"><div class="empty">Select a Team to see its members.</div></div></div></div>
+<div id="adminPanel-teams" class="admin-tab-panel"><div class="card"><h3>Team Details & Squad Management</h3><p class="muted">প্রথমে Tournament ও Team নির্বাচন করলে Squad-এর সব Player এখানে দেখা যাবে।</p><div class="form"><div class="field"><label>Select Tournament</label><select id="memberTournament"><option value="">Select Tournament</option></select></div><div class="field"><label>Select Team</label><select id="memberTeam"><option value="">Select Team</option></select></div></div><div class="head"><h3>Team Members</h3><button class="btn light" onclick="setAdminTab('assignment')">＋ Assign Player</button></div><div id="teamMemberList" class="list"><div class="empty">Select a Team to see its members.</div></div></div></div>
 <div id="adminPanel-profile" class="admin-tab-panel hidden"><div id="adminProfileApprovalMount"></div></div>
 <div id="adminPanel-tournament" class="admin-tab-panel hidden"><div class="card"><h3>Create Tournament</h3><div class="form"><div class="field"><label>Name</label><input id="tName"></div><div class="field"><label>Type</label><select id="tType"><option>League</option><option>Auction</option><option>Solo</option><option>Co-op</option><option>Duo</option><option>3 vs 3</option><option>Premier League</option><option>Champion League</option><option>La Liga</option><option>AOS Super League</option><option>Team</option><option>Knockout</option></select></div><div class="field"><label>Season</label><input id="tSeason" value="Season 1"></div><div class="field"><label>Entry Fee</label><input id="tFee" type="number" value="0"></div><div class="field"><label>Max Participants</label><input id="tMax" type="number" value="16"></div><div class="field"><label>Status</label><select id="tStatus"><option>Registration Open</option><option>Upcoming</option><option>Live</option><option>Completed</option></select></div><div class="field full"><button class="btn green" onclick="createTournament()">Create Tournament</button></div></div></div></div>
 <div id="adminPanel-createTeam" class="admin-tab-panel hidden"><div class="card" style="margin-top:14px">
@@ -662,20 +662,7 @@ header{gap:18px;height:78px;padding-left:max(18px,calc((100% - 1320px)/2));paddi
   <p class="muted">Tournament অনুযায়ী Team নির্বাচন করে Player যুক্ত করুন।</p>
 
   <div class="form">
-    <div class="field">
-      <label>Select Tournament</label>
-      <select id="memberTournament">
-        <option value="">Select Tournament</option>
-      </select>
-    </div>
-
-    <div class="field">
-      <label>Select Team</label>
-      <select id="memberTeam">
-        <option value="">Select Team</option>
-      </select>
-    </div>
-
+    <div class="field full"><p class="muted">Team ও Tournament নির্বাচন করতে “Team & Squad” tab-এ যান।</p></div>
     <div class="field full">
       <label>Select Player</label>
       <select id="memberPlayer">
@@ -717,7 +704,7 @@ header{gap:18px;height:78px;padding-left:max(18px,calc((100% - 1320px)/2));paddi
 
   <div id="adminAuction" class="list"></div>
 </div></div>
-<div id="adminPanel-results" class="admin-tab-panel hidden"><div class="card" style="margin-top:14px"><h3>Approve Match Result</h3><div class="form"><div class="field">
+<div id="adminPanel-results" class="admin-tab-panel hidden"><div class="card" style="margin-top:14px"><h3>Approved Match Results</h3><div class="form"><div class="field">
   <label>Select Match</label>
 <select id="resultMatch">
   <option value="">-- Select Match --</option>
@@ -802,5 +789,5 @@ header{gap:18px;height:78px;padding-left:max(18px,calc((100% - 1320px)/2));paddi
   <button data-id="playersDirectory" onclick="go('playersDirectory')">👥 Players</button>
 </nav>
 <div id="authModal" class="hidden" style="position:fixed;inset:0;background:#0b1730aa;z-index:20;display:grid;place-items:center;padding:16px"><div class="card" style="width:min(440px,100%)"><div class="row"><h2 id="authTitle">Login</h2><button class="btn light" onclick="closeAuth()">✕</button></div><div class="field"><label>Email</label><input id="authEmail" type="email"></div><div class="field" style="margin-top:10px"><label>Password</label><input id="authPass" type="password"></div><div class="row" style="margin-top:14px"><button class="btn" onclick="doAuth('login')">Login</button><button class="btn light" onclick="doAuth('signup')">Create Account</button></div><p class="muted">নতুন Account তৈরি করলে Email verification প্রয়োজন হতে পারে।</p></div></div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="config.js"></script><script src="app.js?v=20261122-09"></script><script src="./pwa.js?v=3"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="config.js"></script><script src="app.js?v=20261122-10"></script><script src="./pwa.js?v=3"></script>
 </body></html>
