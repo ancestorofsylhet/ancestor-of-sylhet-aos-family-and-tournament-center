@@ -1,25 +1,26 @@
 {
   "name": "Ancestor of Sylhet | AOS Tournament Center",
   "short_name": "AOS Center",
+  "id": "./",
   "description": "AOS Tournament Center — Play, Compete, Unite.",
   "start_url": "./?source=pwa",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#ffffff",
-  "theme_color": "#101c34",
+  "theme_color": "#174b32",
   "icons": [
     {
       "src": "https://bzjecjlevbcrjgwkbadi.supabase.co/storage/v1/object/public/site-assets/branding/aos-logo",
-      "sizes": "192x192",
+      "sizes": "1536x1536",
       "type": "image/jpeg",
       "purpose": "any"
     },
     {
       "src": "https://bzjecjlevbcrjgwkbadi.supabase.co/storage/v1/object/public/site-assets/branding/aos-logo",
-      "sizes": "512x512",
+      "sizes": "1536x1536",
       "type": "image/jpeg",
-      "purpose": "any maskable"
+      "purpose": "maskable"
     }
   ]
 }
