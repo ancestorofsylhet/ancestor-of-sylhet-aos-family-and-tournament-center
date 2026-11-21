@@ -9,6 +9,7 @@ let myTournamentRegs=[];
 let currentTournamentCard=null;
 let playerMatchStats=[];
 let managementMembers=[];
+let aosMemories=[];let aosMemoryFilter="all";
 let managementTableReady=false;
 let editingManagementId="";
 let awardTab="motm";
@@ -22,7 +23,39 @@ let memberTournamentId="";
 let memberTeamId="";let auctionTournamentId = "";let auctionPlayerFixtures=[],auctionPlayerSubmissions=[],auctionMatchTab="squads";let auctionTournamentSettings=null,auctionTeamSettings=[],auctionRoom=null,auctionChatMessages=[],auctionRealtimeChannel=null,auctionCallTimer=null,auctionCallAdvancing=false,auctionLastAnnouncedState="";
 const $=id=>document.getElementById(id), msg=(s,type="notice")=>{$("globalMsg").innerHTML=`<div class="notice ${type}">${esc(s)}</div>`;setTimeout(()=>{$("globalMsg").innerHTML=""},6500)};
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-function toggleAOSSidebar(force){const side=$("aosSidebar"),shade=$("sidebarShade");if(!side||!shade)return;const open=typeof force==="boolean"?force:!side.classList.contains("open");side.classList.toggle("open",open);shade.classList.toggle("show",open);$("sidebarMenuBtn")?.setAttribute("aria-expanded",String(open));}function go(id){document.querySelectorAll(".page").forEach(x=>x.classList.add("hidden"));const page=$(id);if(!page)return;page.classList.remove("hidden");document.querySelectorAll(".bottom button,.top-nav button,.sidebar-link").forEach(x=>x.classList.toggle("active",x.dataset.id===id));toggleAOSSidebar(false);render();window.scrollTo(0,0)}
+function toggleAOSSidebar(force){const side=$("aosSidebar"),shade=$("sidebarShade");if(!side||!shade)return;const open=typeof force==="boolean"?force:!side.classList.contains("open");side.classList.toggle("open",open);shade.classList.toggle("show",open);$("sidebarMenuBtn")?.setAttribute("aria-expanded",String(open));}function filterAOSMemories(type){aosMemoryFilter=type;renderAOSMemories();}
+function renderAOSMemories(){
+ const grid=$("aosMemoriesGrid");if(!grid)return;
+ const rows=aosMemories.filter(x=>aosMemoryFilter==="all"||x.media_type===aosMemoryFilter);
+ grid.innerHTML=rows.map(x=>{const url=db.storage.from("aos-memories").getPublicUrl(x.file_path).data.publicUrl;
+ const media=x.media_type==="video"?'<video class="aos-memory-media" controls preload="metadata" src="'+url+'"></video>':'<img class="aos-memory-media" loading="lazy" src="'+url+'" alt="'+esc(x.title)+'">';
+ return '<article class="aos-memory-card">'+media+'<div class="aos-memory-body"><h3>'+esc(x.title)+'</h3><p class="muted">'+esc(x.description||"")+'</p><small class="muted">'+new Date(x.created_at).toLocaleDateString()+'</small>'+(String(role).toLowerCase()==="admin"&&me?'<button class="btn light" style="margin-top:10px" onclick="deleteAOSMemory(\''+x.id+'\')">Delete</button>':'')+'</div></article>';
+ }).join("")||'<div class="empty">এখনো কোনো স্মৃতি Upload করা হয়নি। খুব শিগগিরই AOS-এর স্মৃতির অ্যালবাম ভরে উঠবে।</div>';
+}
+async function uploadAOSMemory(){
+ if(!requireMainAdmin())return;
+ const title=$("memoryTitle").value.trim(),description=$("memoryDescription").value.trim(),file=$("memoryFile").files?.[0];
+ if(!title||!file)return msg("স্মৃতির নাম ও Photo/Video নির্বাচন করুন।","error");
+ const image=file.type.startsWith("image/"),video=file.type.startsWith("video/");
+ if(!image&&!video)return msg("শুধু JPG, PNG, WEBP, GIF, MP4, WEBM বা MOV ফাইল দেওয়া যাবে।","error");
+ if(file.size>(image?15:100)*1024*1024)return msg(image?"ছবির সাইজ 15MB-এর মধ্যে রাখুন।":"ভিডিওর সাইজ 100MB-এর মধ্যে রাখুন।","error");
+ const btn=$("memoryUploadBtn");btn.disabled=true;btn.textContent="Uploading...";
+ const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,"_"),path=Date.now()+"-"+crypto.randomUUID()+"-"+safe;
+ const up=await db.storage.from("aos-memories").upload(path,file,{upsert:false,contentType:file.type});
+ if(up.error){btn.disabled=false;btn.textContent="Upload Memory";return msg("Upload হয়নি: "+up.error.message,"error");}
+ const ins=await db.from("aos_memories").insert({title,description,media_type:image?"photo":"video",file_path:path,file_name:file.name,created_by:me.id});
+ if(ins.error){await db.storage.from("aos-memories").remove([path]);btn.disabled=false;btn.textContent="Upload Memory";return msg("Memory save হয়নি: "+ins.error.message,"error");}
+ $("memoryTitle").value="";$("memoryDescription").value="";$("memoryFile").value="";
+ btn.disabled=false;btn.textContent="Upload Memory";await loadAll();go("memories");msg("AOS Memory সফলভাবে প্রকাশ হয়েছে।","success");
+}
+async function deleteAOSMemory(id){
+ if(!requireMainAdmin()||!confirm("এই স্মৃতিটি Delete করবেন?"))return;
+ const item=aosMemories.find(x=>x.id===id);if(!item)return;
+ const del=await db.from("aos_memories").delete().eq("id",id);
+ if(del.error)return msg("Delete হয়নি: "+del.error.message,"error");
+ await db.storage.from("aos-memories").remove([item.file_path]);await loadAll();go("memories");msg("Memory Delete হয়েছে।","success");
+}
+function go(id){document.querySelectorAll(".page").forEach(x=>x.classList.add("hidden"));const page=$(id);if(!page)return;page.classList.remove("hidden");document.querySelectorAll(".bottom button,.top-nav button,.sidebar-link").forEach(x=>x.classList.toggle("active",x.dataset.id===id));toggleAOSSidebar(false);render();window.scrollTo(0,0)}
 function openAuth(){$("authModal").classList.remove("hidden")}
 function closeAuth(){$("authModal").classList.add("hidden")}
 async function doAuth(mode){if(!db)return msg("আগে config.js-এ Supabase URL ও anon key বসান।","error");const email=$("authEmail").value.trim(),password=$("authPass").value;if(!email||!password)return msg("Email ও Password দিন।","error");const r=mode==="login"?await db.auth.signInWithPassword({email,password}):await db.auth.signUp({email,password});if(r.error)return msg(r.error.message,"error");if(mode==="signup"&&!r.data.session){msg("Account তৈরি হয়েছে। Email verification সম্পন্ন করে Login করুন।","success");return}session=r.data.session;closeAuth();await loadAll();msg("সফলভাবে Login হয়েছে।","success")}
@@ -93,10 +126,13 @@ const statsResult=await db.from("player_match_stats").select("*").order("created
 if(statsResult.error){console.warn("Player stats table not ready:",statsResult.error.message);playerMatchStats=[];}
 else{playerMatchStats=statsResult.data||[];}
 
-const managementResult=await db.from("management_members").select("*").order("display_order",{ascending:true}).order("created_at",{ascending:true});
+const managementResult=await db.from("management_members")const managementResult=await db.from("management_members").select("*").order("display_order",{ascending:true}).order("created_at",{ascending:true});
 managementTableReady=!managementResult.error;
 if(managementResult.error){console.warn("Management table not ready:",managementResult.error.message);managementMembers=[];}
 else{managementMembers=managementResult.data||[];}
+const memoryResult=await db.from("aos_memories").select("*").order("created_at",{ascending:false});
+aosMemories=memoryResult.data||[];
+
 
 render();
 }
@@ -2599,6 +2635,8 @@ const aosTournamentCategories=[{id:'solo',name:'Solo Tournament',icon:'👤',key
 function openAOSTournamentCategory(id){aosSelectedCategory=id;go('tournamentHub');renderAOSTournamentHub();}
 function renderAOSTournamentHub(){const box=$('tournamentHubContent');if(!box)return;if(!aosSelectedCategory){box.innerHTML='<div class="grid tournament-hub-grid">'+aosTournamentCategories.map(c=>'<button class="card tournament-hub-card" onclick="openAOSTournamentCategory(\''+c.id+'\')"><div class="tournament-hub-icon">'+c.icon+'</div><h3>'+esc(c.name)+'</h3><small>Open Tournament →</small></button>').join('')+'</div>';return;}const cat=aosTournamentCategories.find(c=>c.id===aosSelectedCategory);if(!cat)return;const list=tournaments.filter(t=>{const s=(String(t.name||'')+' '+String(t.type||'')).toLowerCase();return cat.keys.some(k=>s.includes(k));});box.innerHTML='<button class="btn light" onclick="aosSelectedCategory=\'\';renderAOSTournamentHub()">← All Categories</button><div class="head"><h2>'+cat.icon+' '+esc(cat.name)+'</h2><span class="pill">'+list.length+' Tournament(s)</span></div><div class="grid">'+list.map(t=>'<div class="card"><h3>'+esc(t.name)+'</h3><p class="muted">'+esc(t.season||'')+' · '+esc(t.status||'')+'</p><button class="btn" onclick="openTournament(\''+t.id+'\')">Open Tournament</button></div>').join('')+'</div>'+(list.length?'':'<div class="empty">এই Category-তে Tournament নেই। Admin Panel থেকে একই নাম/ধরনের Tournament তৈরি করুন।</div>');}
 function render() {
+  const memoryAdmin=$("aosMemoryAdmin");if(memoryAdmin)memoryAdmin.classList.toggle("hidden",!(me&&String(role).toLowerCase()==="admin"));
+  renderAOSMemories();
   renderTournamentCardMaker();
   renderAOSTournamentHub();
   renderPublicPlayers();
