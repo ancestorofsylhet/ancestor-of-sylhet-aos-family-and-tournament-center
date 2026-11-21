@@ -246,6 +246,17 @@ async function removeSubAdmin(id){
 }
 
 function requireAdmin(){if(!me||!["admin","moderator","sub_admin"].includes(String(role).toLowerCase())){msg("এই কাজের জন্য Admin/Moderator permission প্রয়োজন।","error");return false}return true}
+let activeAdminTab="teams";
+function setAdminTab(tab){
+ if(!requireAdmin())return;
+ const allowed=["teams","profile","tournament","createTeam","assignment","auction","results","stats"];
+ if(!allowed.includes(tab))return;
+ activeAdminTab=tab;
+ document.querySelectorAll(".admin-tab-panel").forEach(el=>el.classList.toggle("hidden",el.id!=="adminPanel-"+tab));
+ document.querySelectorAll(".admin-tab-btn").forEach(el=>el.classList.toggle("active",el.dataset.adminTab===tab));
+ if(tab==="profile")loadProfileApprovalPanel();
+ if(tab==="stats")setupPlayerStatsAdminUI();
+}
 function requireMainAdmin(){if(!me||String(role).toLowerCase()!=="admin"){msg("এই Control Panel শুধু Main Admin ব্যবহার করতে পারবেন।","error");return false}return true}
 
 function loadSiteLogo(){
@@ -2582,7 +2593,7 @@ function downloadAwardCard(playerId,category,score){
  const a=document.createElement("a");a.download="AOS-Award-"+(p.display_name||"Player").replace(/[^a-z0-9]+/gi,"-")+".png";a.href=c.toDataURL("image/png");a.click();
 }
 function ensurePlayerStatsAdminUI(){
- const area=$("adminArea");if(!area||$("playerStatsAdminCard"))return;
+ const area=$("adminStatsMount");if(!area||$("playerStatsAdminCard"))return;
  area.insertAdjacentHTML("beforeend",`<div class="card" id="playerStatsAdminCard" style="margin-top:14px"><h3>Update Match Player Stats</h3><p class="muted">প্রতিটি Match-এর পর Player-এর Goals, Assists ও Man of the Match নির্বাচন করুন।</p><div class="form"><div class="field"><label>Completed Match</label><select id="statMatch"></select></div><div class="field"><label>Player</label><select id="statPlayer"></select></div><div class="field"><label>Goals</label><input id="statGoals" type="number" min="0" value="0"></div><div class="field"><label>Assists</label><input id="statAssists" type="number" min="0" value="0"></div><div class="field full"><label><input id="statMotm" type="checkbox"> Man of the Match</label></div><div class="field full"><button class="btn green" onclick="savePlayerMatchStats()">Save Player Stats</button></div></div></div>`);
 }
 function setupPlayerStatsAdminUI(){
@@ -2701,8 +2712,8 @@ async function loadMyProfileRequests(){
 }
 function ensurePlayerApprovalPanel(){
  if(!["admin","sub_admin"].includes(String(role).toLowerCase()))return;
- const area=$("adminArea");if(!area)return;
- if(!$("playerApprovalPanel"))area.insertAdjacentHTML("afterbegin",'<div class="card" id="playerApprovalPanel" style="margin-bottom:15px"><div class="head"><h3>Player Registration & Profile Approval</h3><span class="pill gold">Admin & Sub Admin</span></div><p class="muted">Player-এর Profile Edit Request অনুমোদন বা বাতিল করুন। প্রয়োজন হলে Player-কে Remove করুন।</p><div id="profileEditRequestList" class="list"></div><div class="head"><h3>Registered Players</h3></div><div id="adminRegisteredPlayers" class="list"></div></div>');
+ const area=$("adminProfileApprovalMount");if(!area)return;
+ if(!$("playerApprovalPanel"))area.insertAdjacentHTML("beforeend",'<div class="card" id="playerApprovalPanel" style="margin-bottom:15px"><div class="head"><h3>Player Registration & Profile Approval</h3><span class="pill gold">Admin & Sub Admin</span></div><p class="muted">Player-এর Profile Edit Request অনুমোদন বা বাতিল করুন। প্রয়োজন হলে Player-কে Remove করুন।</p><div id="profileEditRequestList" class="list"></div><div class="head"><h3>Registered Players</h3></div><div id="adminRegisteredPlayers" class="list"></div></div>');
  loadProfileApprovalPanel();
 }
 async function loadProfileApprovalPanel(){
@@ -2744,6 +2755,7 @@ const aosTournamentCategories=[{id:'solo',name:'Solo Tournament',icon:'👤',key
 function openAOSTournamentCategory(id){aosSelectedCategory=id;go('tournamentHub');renderAOSTournamentHub();}
 function renderAOSTournamentHub(){const box=$('tournamentHubContent');if(!box)return;if(!aosSelectedCategory){box.innerHTML='<div class="grid tournament-hub-grid">'+aosTournamentCategories.map(c=>'<button class="card tournament-hub-card" onclick="openAOSTournamentCategory(\''+c.id+'\')"><div class="tournament-hub-icon">'+c.icon+'</div><h3>'+esc(c.name)+'</h3><small>Open Tournament →</small></button>').join('')+'</div>';return;}const cat=aosTournamentCategories.find(c=>c.id===aosSelectedCategory);if(!cat)return;const list=tournaments.filter(t=>{const s=(String(t.name||'')+' '+String(t.type||'')).toLowerCase();return cat.keys.some(k=>s.includes(k));});box.innerHTML='<button class="btn light" onclick="aosSelectedCategory=\'\';renderAOSTournamentHub()">← All Categories</button><div class="head"><h2>'+cat.icon+' '+esc(cat.name)+'</h2><span class="pill">'+list.length+' Tournament(s)</span></div><div class="grid">'+list.map(t=>'<div class="card"><h3>'+esc(t.name)+'</h3><p class="muted">'+esc(t.season||'')+' · '+esc(t.status||'')+'</p><button class="btn" onclick="openTournament(\''+t.id+'\')">Open Tournament</button></div>').join('')+'</div>'+(list.length?'':'<div class="empty">এই Category-তে Tournament নেই। Admin Panel থেকে একই নাম/ধরনের Tournament তৈরি করুন।</div>');}
 function render() {
+  const adminArea=$("adminArea");if(adminArea&&!adminArea.classList.contains("hidden"))setAdminTab(activeAdminTab);
   const memoryAdmin=$("aosMemoryAdmin");if(memoryAdmin)memoryAdmin.classList.toggle("hidden",!(me&&["admin","sub_admin"].includes(String(role).toLowerCase())));const subNav=$("subAdminNavLink");if(subNav)subNav.classList.toggle("hidden",!(me&&String(role).toLowerCase()==="admin"));if(me&&String(role).toLowerCase()==="admin"&&$("subAdminManagement")&&!$("subAdminManagement").classList.contains("hidden"))loadSubAdminManagement();
   renderAOSMemories();
   loadCommunityFeed();
