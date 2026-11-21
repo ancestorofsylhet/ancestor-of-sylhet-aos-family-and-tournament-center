@@ -126,7 +126,7 @@ const statsResult=await db.from("player_match_stats").select("*").order("created
 if(statsResult.error){console.warn("Player stats table not ready:",statsResult.error.message);playerMatchStats=[];}
 else{playerMatchStats=statsResult.data||[];}
 
-const managementResult=await db.from("management_members")const managementResult=await db.from("management_members").select("*").order("display_order",{ascending:true}).order("created_at",{ascending:true});
+const managementResult=await db.from("management_members").select("*").order("display_order",{ascending:true}).order("created_at",{ascending:true});
 managementTableReady=!managementResult.error;
 if(managementResult.error){console.warn("Management table not ready:",managementResult.error.message);managementMembers=[];}
 else{managementMembers=managementResult.data||[];}
