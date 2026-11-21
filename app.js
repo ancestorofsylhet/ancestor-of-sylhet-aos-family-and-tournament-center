@@ -10,6 +10,84 @@ let currentTournamentCard=null;
 let playerMatchStats=[];
 let managementMembers=[];
 let aosMemories=[];let aosMemoryFilter="all";
+
+let communityPosts=[],communityComments=[],communityShares=[];
+async function loadCommunityFeed(){
+ const feed=$("communityFeed");if(!feed)return;
+ feed.innerHTML='<div class="empty">লোড হচ্ছে...</div>';
+ const {data:posts,error}=await db.from("aos_community_posts").select("*").order("created_at",{ascending:false}).limit(100);
+ if(error){feed.innerHTML='<div class="empty">Community Feed লোড হয়নি: '+esc(error.message)+'</div>';return;}
+ communityPosts=posts||[];
+ const approved=communityPosts.filter(p=>p.status==="approved"),ids=approved.map(p=>p.id);
+ communityComments=[];communityShares=[];
+ if(ids.length){
+  const [cr,sr]=await Promise.all([
+   db.from("aos_community_comments").select("*").in("post_id",ids).order("created_at",{ascending:true}),
+   db.from("aos_community_shares").select("post_id,author_id").in("post_id",ids)
+  ]);
+  communityComments=cr.data||[];communityShares=sr.data||[];
+ }
+ const authorIds=[...new Set([...communityPosts.map(p=>p.author_id),...communityComments.map(c=>c.author_id)])];
+ let profileMap={};
+ if(authorIds.length){const pr=await db.from("profiles").select("id,display_name,avatar_url").in("id",authorIds);(pr.data||[]).forEach(p=>profileMap[p.id]=p);}
+ const admin=!!me&&String(role).toLowerCase()==="admin";
+ const pending=communityPosts.filter(p=>p.status==="pending"&&admin);
+ const queue=$("communityAdminQueue"),queueList=$("communityPendingList");
+ if(queue)queue.classList.toggle("hidden",!admin);
+ if(queueList)queueList.innerHTML=pending.map(p=>'<div class="community-review-item"><b>'+esc(profileMap[p.author_id]?.display_name||"AOS Player")+'</b><small class="muted"> · '+new Date(p.created_at).toLocaleString()+'</small><p>'+esc(p.content||"")+'</p>'+(p.image_path?'<img class="community-post-image" style="max-height:220px" src="'+db.storage.from("aos-community").getPublicUrl(p.image_path).data.publicUrl+'">':'')+'<div class="community-review-actions"><button class="btn green" onclick="reviewCommunityPost(\''+p.id+'\',\'approved\')">Approve</button><button class="btn light" onclick="reviewCommunityPost(\''+p.id+'\',\'rejected\')">Reject</button></div></div>').join("")||'<div class="empty">কোনো Pending Post নেই।</div>';
+ const visible=communityPosts.filter(p=>p.status==="approved"||(me&&p.author_id===me.id));
+ feed.innerHTML=visible.map(p=>{
+  const own=me&&p.author_id===me.id,author=profileMap[p.author_id]?.display_name||"AOS Player",avatar=profileMap[p.author_id]?.avatar_url;
+  const comments=communityComments.filter(c=>c.post_id===p.id),shareCount=communityShares.filter(x=>x.post_id===p.id).length;
+  const image=p.image_path?'<img class="community-post-image" loading="lazy" src="'+db.storage.from("aos-community").getPublicUrl(p.image_path).data.publicUrl+'" alt="Community post photo">':"";
+  const status=p.status!=="approved"?'<span class="community-status">'+(p.status==="pending"?"Pending Approval":"Rejected")+'</span>':"";
+  const commentHtml=p.status==="approved"?'<div class="community-comments"><b>Comments ('+comments.length+')</b>'+comments.map(c=>'<div class="community-comment"><b>'+esc(profileMap[c.author_id]?.display_name||"AOS Player")+'</b> '+esc(c.content)+'</div>').join("")+(me?'<div class="community-comment-form"><input id="communityComment-'+p.id+'" maxlength="1000" placeholder="Write a comment..."><button class="btn green" onclick="addCommunityComment(\''+p.id+'\')">Comment</button></div>':'<small class="muted">Comment করতে Login করুন।</small>')+'</div>':"";
+  return '<article class="community-post"><div class="community-post-head"><div class="community-author"><div class="community-avatar">'+(avatar?'<img src="'+esc(avatar)+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%">':esc(author.slice(0,1).toUpperCase()))+'</div><div><b>'+esc(author)+'</b><div class="muted"><small>'+new Date(p.created_at).toLocaleString()+'</small></div></div></div>'+status+'</div><div class="community-post-body">'+esc(p.content||"")+'</div>'+image+(p.status==="approved"?'<div class="community-actions"><button class="btn light" onclick="shareCommunityPost(\''+p.id+'\')">↗ Share ('+shareCount+')</button><button class="btn light" onclick="document.getElementById(\'communityComment-'+p.id+'\')?.focus()">💬 Comment ('+comments.length+')</button></div>':'')+commentHtml+(own&&p.status!=="approved"?'<div class="community-actions"><button class="btn light" onclick="deleteCommunityPost(\''+p.id+'\')">Delete My Post</button></div>':'')+'</article>';
+ }).join("")||'<div class="empty">এখনো কোনো Approved Post নেই। প্রথম পোস্টটি শেয়ার করুন!</div>';
+}
+async function submitCommunityPost(){
+ if(!me){msg("Post করতে আগে Login করুন।","error");openAuth();return;}
+ const content=$("communityPostText").value.trim(),file=$("communityPostImage").files?.[0];
+ if(!content&&!file)return msg("কিছু লিখুন অথবা একটি ছবি নির্বাচন করুন।","error");
+ if(file&&(!file.type.startsWith("image/")||file.size>15*1024*1024))return msg("JPG, PNG, WEBP বা GIF ছবি দিন (সর্বোচ্চ 15MB)।","error");
+ const btn=$("communityPostBtn");btn.disabled=true;btn.textContent="Submitting...";
+ let image_path=null;
+ if(file){image_path=me.id+"/"+Date.now()+"-"+crypto.randomUUID()+"-"+file.name.replace(/[^a-zA-Z0-9._-]/g,"_");const up=await db.storage.from("aos-community").upload(image_path,file,{contentType:file.type,upsert:false});if(up.error){btn.disabled=false;btn.textContent="Submit for Approval";return msg("ছবি Upload হয়নি: "+up.error.message,"error");}}
+ const result=await db.from("aos_community_posts").insert({author_id:me.id,content,image_path,status:"pending"});
+ if(result.error){if(image_path)await db.storage.from("aos-community").remove([image_path]);btn.disabled=false;btn.textContent="Submit for Approval";return msg("Post Submit হয়নি: "+result.error.message,"error");}
+ $("communityPostText").value="";$("communityPostImage").value="";$("communityImageName").textContent="No photo selected";
+ btn.disabled=false;btn.textContent="Submit for Approval";msg("আপনার পোস্ট Admin Approval-এর জন্য পাঠানো হয়েছে।","success");await loadCommunityFeed();
+}
+async function reviewCommunityPost(id,status){
+ if(!requireMainAdmin())return;
+ const update={status:status,approved_at:status==="approved"?new Date().toISOString():null,approved_by:status==="approved"?me.id:null};
+ const r=await db.from("aos_community_posts").update(update).eq("id",id);
+ if(r.error)return msg("Post update হয়নি: "+r.error.message,"error");
+ msg(status==="approved"?"Post সবার জন্য প্রকাশ হয়েছে।":"Post Reject করা হয়েছে।","success");await loadCommunityFeed();
+}
+async function addCommunityComment(postId){
+ if(!me){msg("Comment করতে Login করুন।","error");return;}
+ const input=$("communityComment-"+postId),content=input?.value.trim();if(!content)return;
+ const r=await db.from("aos_community_comments").insert({post_id:postId,author_id:me.id,content});
+ if(r.error)return msg("Comment হয়নি: "+r.error.message,"error");
+ await loadCommunityFeed();
+}
+async function shareCommunityPost(id){
+ const post=communityPosts.find(p=>p.id===id);if(!post||post.status!=="approved")return;
+ if(me){const r=await db.from("aos_community_shares").upsert({post_id:id,author_id:me.id},{onConflict:"post_id,author_id",ignoreDuplicates:true});if(r.error)console.warn("Share count:",r.error.message);}
+ const url=location.origin+location.pathname+"?communityPost="+encodeURIComponent(id);
+ const data={title:"AOS Community Post",text:(post.content||"AOS Community Post").slice(0,180),url:url};
+ try{if(navigator.share)await navigator.share(data);else{await navigator.clipboard.writeText(url);msg("Post link Copy হয়েছে।","success");}}catch(e){if(e.name!=="AbortError")msg("Share করা যায়নি। Link: "+url,"error");}
+ await loadCommunityFeed();
+}
+async function deleteCommunityPost(id){
+ const p=communityPosts.find(x=>x.id===id);if(!p||!me||p.author_id!==me.id)return;
+ if(!confirm("নিজের এই Post Delete করবেন?"))return;
+ const r=await db.from("aos_community_posts").delete().eq("id",id);if(r.error)return msg("Delete হয়নি: "+r.error.message,"error");
+ if(p.image_path)await db.storage.from("aos-community").remove([p.image_path]);
+ msg("আপনার Post Delete হয়েছে।","success");await loadCommunityFeed();
+}
+
 let managementTableReady=false;
 let editingManagementId="";
 let awardTab="motm";
@@ -55,6 +133,7 @@ async function deleteAOSMemory(id){
  if(del.error)return msg("Delete হয়নি: "+del.error.message,"error");
  await db.storage.from("aos-memories").remove([item.file_path]);await loadAll();go("memories");msg("Memory Delete হয়েছে।","success");
 }
+document.addEventListener("change",e=>{if(e.target&&e.target.id==="communityPostImage")$("communityImageName").textContent=e.target.files?.[0]?.name||"No photo selected";});
 function go(id){document.querySelectorAll(".page").forEach(x=>x.classList.add("hidden"));const page=$(id);if(!page)return;page.classList.remove("hidden");document.querySelectorAll(".bottom button,.top-nav button,.sidebar-link").forEach(x=>x.classList.toggle("active",x.dataset.id===id));toggleAOSSidebar(false);render();window.scrollTo(0,0)}
 function openAuth(){$("authModal").classList.remove("hidden")}
 function closeAuth(){$("authModal").classList.add("hidden")}
@@ -2637,6 +2716,7 @@ function renderAOSTournamentHub(){const box=$('tournamentHubContent');if(!box)re
 function render() {
   const memoryAdmin=$("aosMemoryAdmin");if(memoryAdmin)memoryAdmin.classList.toggle("hidden",!(me&&String(role).toLowerCase()==="admin"));
   renderAOSMemories();
+  loadCommunityFeed();
   renderTournamentCardMaker();
   renderAOSTournamentHub();
   renderPublicPlayers();
