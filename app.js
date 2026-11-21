@@ -16,7 +16,7 @@ let teamMembers=[];
 let selectedTournamentId="";
 let auctionArenaTab="control";
 let tournamentDetailTab="overview";
-let aosSelectedCategory="";
+let aosSelectedCategory="";let selectedHubPlayers=[];
 let selectedTournamentTeams=[];
 let memberTournamentId="";
 let memberTeamId="";let auctionTournamentId = "";let auctionPlayerFixtures=[],auctionPlayerSubmissions=[],auctionMatchTab="squads";let auctionTournamentSettings=null,auctionTeamSettings=[],auctionRoom=null,auctionChatMessages=[],auctionRealtimeChannel=null,auctionCallTimer=null,auctionCallAdvancing=false,auctionLastAnnouncedState="";
@@ -2340,7 +2340,7 @@ async function openTournament(id){
   const t=tournaments.find(x=>String(x.id)===String(id));
   if(!t)return msg("Tournament পাওয়া যায়নি।","error");
   selectedTournamentId=String(id); tournamentDetailTab="overview";
-  const {data,error}=await db.from("tournament_teams").select("team_id,team:teams(id,name,logo_url,description,captain_id)").eq("tournament_id",id);
+  const {data,error}=await db.from("tournament_teams").select("team_id,team:teams(id,name,logo_url,description,captain_id)").eq("tournament_id",id); const playerRows=await db.from("tournament_participants").select("id,profile_id,team_id,status,profile:profiles(id,display_name,efootball_id,device,avatar_url)").eq("tournament_id",id); selectedHubPlayers=playerRows.error?[]:(playerRows.data||[]);
   if(error){console.error("Tournament teams:",error);selectedTournamentTeams=[];}
   else selectedTournamentTeams=(data||[]).map(x=>x.team).filter(Boolean);
   renderTournamentDetails();
@@ -2350,6 +2350,7 @@ async function openTournament(id){
 }
 function closeTournament(){selectedTournamentId="";let p=$("tournamentDetailPage");if(p)p.classList.add("hidden");go("tournaments")}
 function setTournamentTab(tab){tournamentDetailTab=tab;renderTournamentDetails()}
+function generateTournamentDetailFixtures(){if(!selectedTournamentId)return;const s=$('fixtureTournament');if(s)s.value=selectedTournamentId;generateFixtures();}
 function renderTournamentDetails(){
   const t=tournaments.find(x=>String(x.id)===String(selectedTournamentId)); if(!t)return;
   let panel=$("tournamentDetailPage");
@@ -2358,7 +2359,7 @@ function renderTournamentDetails(){
   const tm=matches.filter(x=>String(x.tournament_id)===String(t.id));
   const st=standings.filter(x=>String(x.tournament_id)===String(t.id));
   const ap=auctionPlayers.filter(x=>String(x.tournament_id)===String(t.id));
-  const tabs=[['overview','Overview'],['teams','Teams'],['squad','Squad'],['auction','Auction'],['matches','Fixtures & Results'],['table','Points Table'],['knockout','Knockout']];
+  const solo=String(t.type||'').toLowerCase().includes('solo')||String(aosSelectedCategory)==='solo'; const tabs=solo?[['players','Player'],['table','Points Table'],['group','Group Stage'],['knockout','Knockout Stage'],['matches','Match History'],['top','Top Player'],['draw','Automatic Draw / Generate Fixture']]:[['teams','Team & Squad'],['table','Points Table'],['group','Group Stage'],['knockout','Knockout Stage'],['matches','Match History'],['top','Top Player'],['draw','Automatic Draw / Generate Fixture']];
   const nav=tabs.map(([k,label])=>`<button class="btn ${tournamentDetailTab===k?'':'light'}" style="margin:4px" onclick="setTournamentTab('${k}')">${label}</button>`).join('');
   let content='';
   if(tournamentDetailTab==='overview') content=`<div class="card"><h3>${esc(t.name)}</h3><p>Type: ${esc(t.type||'—')} · Season: ${esc(t.season||'—')}</p><p>Status: ${esc(t.status||'—')}</p><p>Entry Fee: ${Number(t.entry_fee||0)} · Maximum Teams/Players: ${t.max_participants||'—'}</p><p>Registered Teams: ${selectedTournamentTeams.length}</p></div>`;
@@ -2373,6 +2374,10 @@ function renderTournamentDetails(){
     }).join('')||'<div class=\"empty\">এই Tournament-এ এখনো কোনো Player Sold হয়নি।</div>';
   }
   if(tournamentDetailTab==='auction') content=ap.map(x=>{const p=x.profile||players.find(z=>String(z.id)===String(x.profile_id))||{};return `<div class="item" style="display:flex;align-items:center;gap:12px">${p.avatar_url?`<img src="${esc(p.avatar_url)}" alt="Player Photo" style="width:68px;height:68px;object-fit:cover;border-radius:14px">`:'<div class="avatar" style="width:68px;height:68px;border-radius:14px">👤</div>'}<div class="grow"><b>${esc(p.display_name||'Player')}</b><small style="display:block">Device: ${esc(p.device||'Not Added')}</small><small style="display:block">User ID: ${esc(p.efootball_id||'Not Added')}</small><small style="display:block">${esc(x.status||'')} · Base Price: ${Number(x.base_price||0)}</small></div></div>`;}).join('')||'<div class="empty">এই Tournament-এর Auction Player পাওয়া যায়নি।</div>';
+  if(tournamentDetailTab==='players') content=selectedHubPlayers.map(p=>`<div class="item"><b>${esc(p.profile?.display_name||'Player')}</b><small>${esc(p.profile?.efootball_id||'')} · ${esc(p.status||'registered')}</small></div>`).join('')||'<div class="empty">এই Solo Tournament-এ এখনো Player Register করেনি।</div>';
+  if(tournamentDetailTab==='group') content=tm.filter(x=>['group','group stage','league'].includes(String(x.stage||'').toLowerCase())).map(x=>`<div class="item"><b>${esc(x.home?.name||'TBD')} vs ${esc(x.away?.name||'TBD')}</b><small>Group Stage · Round ${x.round_no||'—'}</small><b>${x.home_score??'—'} : ${x.away_score??'—'}</b></div>`).join('')||'<div class="empty">Group Stage Fixture এখনো তৈরি হয়নি।</div>';
+  if(tournamentDetailTab==='top') { const rank={}; playerMatchStats.filter(s=>String(s.tournament_id)===String(t.id)).forEach(s=>{const id=String(s.player_id);rank[id]??={g:0,a:0,m:0};rank[id].g+=Number(s.goals||0);rank[id].a+=Number(s.assists||0);rank[id].m+=s.is_motm?1:0;}); content=Object.entries(rank).sort((a,b)=>(b[1].g*3+b[1].a+b[1].m*2)-(a[1].g*3+a[1].a+a[1].m*2)).map(([id,v],i)=>`<div class="item"><b>#${i+1} ${esc(players.find(p=>String(p.id)===id)?.display_name||'Player')}</b><small>Goals ${v.g} · Assists ${v.a} · MOTM ${v.m}</small></div>`).join('')||'<div class="empty">Player Stats এখনো যোগ হয়নি।</div>'; }
+  if(tournamentDetailTab==='draw') content=solo?'<div class="empty">Solo Player-vs-Player Automatic Draw-এর জন্য আলাদা Player Fixture system প্রয়োজন; এটি পরবর্তী ধাপে যুক্ত করতে হবে।</div>':'<div class="card"><p>Registered Team থেকে Automatic Group Stage Fixture তৈরি করুন।</p><button class="btn green" onclick="generateTournamentDetailFixtures()">Generate Fixtures</button></div>';
   if(tournamentDetailTab==='matches') content=tm.map(x=>`<div class="item"><b>${esc(x.home?.name||'TBD')} vs ${esc(x.away?.name||'TBD')}</b><small>Round ${x.round_no||'—'} · ${esc(x.status||'')}</small><b>${x.home_score??'—'} : ${x.away_score??'—'}</b></div>`).join('')||'<div class="empty">এই Tournament-এর Fixture তৈরি হয়নি।</div>';
   if(tournamentDetailTab==='table') content=st.map((x,i)=>`<div class="item"><b>${i+1}. ${esc(x.team?.name||'Team')}</b><small>P ${x.played??0} · W ${x.won??0} · D ${x.drawn??0} · L ${x.lost??0} · GD ${x.goal_difference??0} · Points ${x.points??0}</small></div>`).join('')||'<div class="empty">এই Tournament-এর Points Table পাওয়া যায়নি।</div>';
   if(tournamentDetailTab==='knockout') content=tm.filter(x=>String(x.stage||'').toLowerCase().includes('knockout')||String(x.stage||'').toLowerCase().includes('final')||String(x.stage||'').toLowerCase().includes('semi')).map(x=>`<div class="item"><b>${esc(x.home?.name||'TBD')} vs ${esc(x.away?.name||'TBD')}</b><small>${esc(x.stage||'Knockout')}</small><b>${x.home_score??'—'} : ${x.away_score??'—'}</b></div>`).join('')||'<div class="empty">Knockout fixture এখনো তৈরি হয়নি।</div>';
